@@ -83,3 +83,6 @@ def create_SenseidReader(reader_info: SenseidReaderConnectionInfo = None, notifi
     if reader_info.driver == SupportedSenseidReader.OCTANE:
         from .octane import SenseidOctane
         return SenseidOctane()
+    if reader_info.driver == SupportedSenseidReader.NURAPI:
+        from .nurapi import SenseidNurapi
+        return SenseidNurapi()

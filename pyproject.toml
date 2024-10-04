@@ -24,7 +24,17 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
+dependencies = [
+  'yaml',
+  'redrcp',
+  'nurapi',
+  'octane-sdk-wrapper'
+]
+
+[project.optional-dependencies]
+dev = [
+    'pytest'
+]
 
 [project.urls]
 Documentation = "https://github.com/U.N. Owen/senseid#readme"
@@ -58,4 +68,18 @@ exclude_lines = [
   "no cov",
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
+]
+
+[tool.hatch.build.targets.wheel]
+artifacts = [
+  "*.so",
+  "*.dll",
+  "*.yaml",
+]
+
+[tool.hatch.build.targets.sdist]
+artifacts = [
+  "*.so",
+  "*.dll",
+  "*.yaml",
 ]

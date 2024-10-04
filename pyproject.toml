@@ -25,7 +25,8 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  'yaml',
+  'pyyaml',
+  'dataclasses_json',
   'redrcp',
   'nurapi',
   'octane-sdk-wrapper'

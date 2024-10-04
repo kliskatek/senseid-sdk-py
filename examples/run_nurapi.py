@@ -23,8 +23,12 @@ if connection_info is None:
 
 sid_reader = create_SenseidReader(connection_info)
 sid_reader.connect(connection_info.connection_string)
-
-
+sid_reader.set_tx_power(dbm=20)
+tx_power = sid_reader.get_tx_power()
+logging.info(tx_power)
+sid_reader.set_tx_power(dbm=sid_reader.get_details().max_tx_power + 1)
+tx_power = sid_reader.get_tx_power()
+logging.info(tx_power)
 
 
 def notification_callback(epc: SenseidTag):

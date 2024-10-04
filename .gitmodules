@@ -1,0 +1,3 @@
+[submodule "src/senseid/definitions"]
+	path = src/senseid/definitions
+	url = https://github.com/kliskatek/senseid-definitions.git

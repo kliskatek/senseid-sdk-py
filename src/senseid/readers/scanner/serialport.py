@@ -28,13 +28,13 @@ class SerialPortScanner:
                     if com_port.name not in self.comports:
                         logger.info('New REDRCP reader found: ' + com_port.name)
                         self.comports.append(com_port.name)
-                        self.notification_callback(SenseidReaderConnectionInfo(driver=SupportedSenseidReader.RED4S,
+                        self.notification_callback(SenseidReaderConnectionInfo(driver=SupportedSenseidReader.REDRCP,
                                                                                connection_string=com_port.name))
                 # NUR
                 if 'NUR Module' in str(com_port.manufacturer):
                     if com_port.name not in self.comports:
                         logger.info('New NUR reader found: ' + com_port.name)
                         self.comports.append(com_port.name)
-                        self.notification_callback(SenseidReaderConnectionInfo(driver=SupportedSenseidReader.NUR,
+                        self.notification_callback(SenseidReaderConnectionInfo(driver=SupportedSenseidReader.NURAPI,
                                                                                connection_string=com_port.name))
             time.sleep(1)

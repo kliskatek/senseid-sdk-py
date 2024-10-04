@@ -13,5 +13,5 @@ def scanner_notification_callback(reader_list: List[SenseidReaderConnectionInfo]
 
 
 scanner = SenseidReaderScanner(notification_callback=scanner_notification_callback)
-input()
+
 time.sleep(5)

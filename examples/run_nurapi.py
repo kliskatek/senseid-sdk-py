@@ -43,6 +43,7 @@ def notification_callback(epc: SenseidTag):
 
 logging.info('Starting inventory')
 sid_reader.start_inventory_async(notification_callback=notification_callback)
+
 time.sleep(1)
 
 logging.info('Stopping inventory')

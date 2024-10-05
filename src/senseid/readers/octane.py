@@ -22,9 +22,12 @@ class SenseidOctane(SenseidReader):
             return False
         self.driver.set_notification_callback(self._octane_notification_callback)
         self.get_details()
+        # Set Senseid compatible mode
         self.driver.set_mode(reader_mode=OctaneReaderMode.DenseReaderM4, search_mode=OctaneSearchMode.DualTarget,
                              session=1)
+        # Set MAX TX Power
         self.driver.set_tx_power(self.details.max_tx_power)
+        # Enable first antenna
         antenna_config = [False] * self.details.antenna_count
         antenna_config[0] = True
         self.driver.set_antenna_config(antenna_config)

@@ -24,17 +24,17 @@ class SenseidNurapi(SenseidReader):
         self.driver.set_user_inventory_notification_callback(self._nur_notification_callback)
         self.get_details()
 
-        # Set desired configuration
+        # Set Senseid compatible mode
         module_setup = NurModuleSetup()
         module_setup.link_freq = SETUP_LINK_FREQ.BLF_256
         module_setup.rx_decoding = SETUP_RX_DEC.MILLER_4
         self.driver.SetModuleSetup(setupFlags=[NUR_MODULESETUP_FLAGS.NUR_SETUP_LINKFREQ,
                                                NUR_MODULESETUP_FLAGS.NUR_SETUP_RXDEC], module_setup=module_setup)
 
-        # set tx power max
+        # Set MAX TX Power
         self.set_tx_power(self.details.max_tx_power)
 
-        # set antenna config
+        # Enable first antenna
         antenna_config = [False] * self.details.antenna_count
         antenna_config[0] = True
         self.set_antenna_config(antenna_config_array=antenna_config)

@@ -18,11 +18,7 @@ if connection_info is None:
 sid_reader = create_SenseidReader(connection_info)
 sid_reader.connect(connection_info.connection_string)
 
-logging.info('Setting different antenna configurations')
-sid_reader.set_antenna_config(antenna_config_array=[True, True])
-sid_reader.get_antenna_config()
-sid_reader.set_antenna_config(antenna_config_array=[False, True])
-sid_reader.get_antenna_config()
+logging.info('Setting antenna configurations')
 sid_reader.set_antenna_config(antenna_config_array=[True, False])
 sid_reader.get_antenna_config()
 

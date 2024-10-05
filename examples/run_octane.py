@@ -9,13 +9,7 @@ from src.senseid.readers.scanner import SenseidReaderScanner
 logging.basicConfig(level=logging.DEBUG)
 
 scanner = SenseidReaderScanner()
-
-time.sleep(1)
-connection_info = None
-for reader_connection_info in scanner.get_readers():
-    if reader_connection_info.driver == SupportedSenseidReader.OCTANE:
-        connection_info = reader_connection_info
-        break
+connection_info = scanner.wait_for_reader_of_type(SupportedSenseidReader.OCTANE)
 
 if connection_info is None:
     print('No reader found')

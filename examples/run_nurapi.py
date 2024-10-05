@@ -23,12 +23,24 @@ if connection_info is None:
 
 sid_reader = create_SenseidReader(connection_info)
 sid_reader.connect(connection_info.connection_string)
-sid_reader.set_tx_power(dbm=20)
-tx_power = sid_reader.get_tx_power()
-logging.info(tx_power)
-sid_reader.set_tx_power(dbm=sid_reader.get_details().max_tx_power + 1)
-tx_power = sid_reader.get_tx_power()
-logging.info(tx_power)
+
+logging.info('Setting antenna configuration')
+sid_reader.set_antenna_config(antenna_config_array=[True])
+sid_reader.get_antenna_config()
+
+logging.info('Setting valid TX power')
+sid_reader.set_tx_power(15)
+sid_reader.get_tx_power()
+logging.info('Setting too low TX power')
+sid_reader.set_tx_power(sid_reader.get_details().min_tx_power - 10)
+sid_reader.get_tx_power()
+logging.info('Setting too high TX power')
+sid_reader.set_tx_power(sid_reader.get_details().max_tx_power + 10)
+sid_reader.get_tx_power()
+
+logging.info('Setting max TX power')
+sid_reader.set_tx_power(sid_reader.get_details().max_tx_power)
+sid_reader.get_tx_power()
 
 
 def notification_callback(epc: SenseidTag):
@@ -37,7 +49,6 @@ def notification_callback(epc: SenseidTag):
 
 logging.info('Starting inventory')
 sid_reader.start_inventory_async(notification_callback=notification_callback)
-input()
 time.sleep(1)
 
 logging.info('Stopping inventory')

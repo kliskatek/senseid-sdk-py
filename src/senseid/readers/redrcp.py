@@ -1,30 +1,37 @@
 import logging
-from typing import List
+from typing import List, Callable
 
-from src.py_redrcp import RedRcp
-from src.py_senseid.readers import SenseidReader, SenseidReaderDetails
+from redrcp import RedRcp, NotificationTpeCuiii, NotificationTpeCuiiiRssi, NotificationTpeCuiiiTid
+
+from ..parsers import SenseidTag
+from ..parsers.rain import SenseidRainTag
+from ..readers import SenseidReader, SenseidReaderDetails
 
 
 class SenseidReaderRedRcp(SenseidReader):
 
-    def __init__(self, connection_string, notification_callback):
-        self.connection_string = connection_string
-        self.notification_callback = notification_callback
+    def __init__(self):
         self.driver = RedRcp()
+        self.notification_callback = None
         self.details = None
 
-    def connect(self):
-        if not self.driver.connect(port=self.connection_string):
+    def connect(self, connection_string: str):
+        if not self.driver.connect(connection_string=connection_string):
             return False
-        self.driver.set_notification_callback(self.notification_callback)
+        self.driver.set_notification_callback(self._redrcp_notification_callback)
         return True
+
+    def _redrcp_notification_callback(self, red_rcp_notification: NotificationTpeCuiii |
+                                                                  NotificationTpeCuiiiRssi |
+                                                                  NotificationTpeCuiiiTid):
+        if self.notification_callback is not None:
+            self.notification_callback(SenseidRainTag(epc=red_rcp_notification.epc))
 
     def disconnect(self):
         self.driver.disconnect()
 
     def get_details(self):
         info_model = self.driver.get_info_model()
-        info_manufacturer = self.driver.get_info_manufacturer()
         info_fw_version = self.driver.get_info_fw_version()
         info_detail = self.driver.get_info_detail()
         self.details = SenseidReaderDetails(
@@ -60,7 +67,8 @@ class SenseidReaderRedRcp(SenseidReader):
         # RED4S has a single antenna
         pass
 
-    def start_inventory_async(self):
+    def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None]):
+        self.notification_callback = notification_callback
         return self.driver.start_auto_read2()
 
     def stop_inventory_async(self):

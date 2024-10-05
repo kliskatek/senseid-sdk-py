@@ -77,9 +77,8 @@ def get_supported_readers():
 
 def create_SenseidReader(reader_info: SenseidReaderConnectionInfo = None, notification_callback=None) -> SenseidReader:
     if reader_info.driver == SupportedSenseidReader.REDRCP:
-        from .red4s import SenseidReaderRedRcp
-        return SenseidReaderRedRcp(connection_string=reader_info.connection_string,
-                                   notification_callback=notification_callback)
+        from .redrcp import SenseidReaderRedRcp
+        return SenseidReaderRedRcp()
     if reader_info.driver == SupportedSenseidReader.OCTANE:
         from .octane import SenseidOctane
         return SenseidOctane()

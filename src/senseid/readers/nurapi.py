@@ -21,14 +21,14 @@ class SenseidNurapi(SenseidReader):
 
     def connect(self, connection_string: str):
         self.driver.ConnectSerialPortEx(port_name=connection_string)
-        self.driver.set_user_inventory_notification_callback(self._nur_notification_callback)
+        self.driver.set_notification_callback(self._nur_notification_callback)
         self.get_details()
 
         # Set Senseid compatible mode
         module_setup = NurModuleSetup()
         module_setup.link_freq = SETUP_LINK_FREQ.BLF_256
         module_setup.rx_decoding = SETUP_RX_DEC.MILLER_4
-        self.driver.SetModuleSetup(setupFlags=[NUR_MODULESETUP_FLAGS.NUR_SETUP_LINKFREQ,
+        self.driver.SetModuleSetup(setup_flags=[NUR_MODULESETUP_FLAGS.NUR_SETUP_LINKFREQ,
                                                NUR_MODULESETUP_FLAGS.NUR_SETUP_RXDEC], module_setup=module_setup)
 
         # Set MAX TX Power
@@ -62,7 +62,7 @@ class SenseidNurapi(SenseidReader):
             reader_info = self.driver.GetReaderInfo()
             self.device_caps = self.driver.GetDeviceCaps()
 
-            module_setup = self.driver.GetModuleSetup(setupFlags=[NUR_MODULESETUP_FLAGS.NUR_SETUP_REGION])
+            module_setup = self.driver.GetModuleSetup(setup_flags=[NUR_MODULESETUP_FLAGS.NUR_SETUP_REGION])
 
             self.details = SenseidReaderDetails(
                 model_name=reader_info.name,
@@ -77,7 +77,7 @@ class SenseidNurapi(SenseidReader):
 
     def get_tx_power(self) -> float:
         # Only supporting same power on all antennas
-        module_setup = self.driver.GetModuleSetup(setupFlags=[NUR_MODULESETUP_FLAGS.NUR_SETUP_TXLEVEL])
+        module_setup = self.driver.GetModuleSetup(setup_flags=[NUR_MODULESETUP_FLAGS.NUR_SETUP_TXLEVEL])
         current_tx_dbm = self.device_caps.maxTxdBm - module_setup.tx_level / self.device_caps.txAttnStep
         logger.debug('get_tx_power: ' + str(current_tx_dbm))
         return current_tx_dbm
@@ -96,10 +96,10 @@ class SenseidNurapi(SenseidReader):
 
         module_setup = NurModuleSetup()
         module_setup.tx_level = (self.device_caps.maxTxdBm - dbm) * self.device_caps.txAttnStep
-        self.driver.SetModuleSetup(setupFlags=[NUR_MODULESETUP_FLAGS.NUR_SETUP_TXLEVEL], module_setup=module_setup)
+        self.driver.SetModuleSetup(setup_flags=[NUR_MODULESETUP_FLAGS.NUR_SETUP_TXLEVEL], module_setup=module_setup)
 
     def get_antenna_config(self) -> List[bool]:
-        module_setup = self.driver.GetModuleSetup(setupFlags=[NUR_MODULESETUP_FLAGS.NUR_SETUP_ANTMASKEX])
+        module_setup = self.driver.GetModuleSetup(setup_flags=[NUR_MODULESETUP_FLAGS.NUR_SETUP_ANTMASKEX])
         antenna_mask = module_setup.antenna_mask_ex
         antenna_config_array = []
         for i in range(self.details.antenna_count):
@@ -119,7 +119,7 @@ class SenseidNurapi(SenseidReader):
         module_setup = NurModuleSetup()
         module_setup.antenna_mask_ex = antenna_mask
         module_setup.selected_antenna = -1  # Automatic selection
-        self.driver.SetModuleSetup(setupFlags=[NUR_MODULESETUP_FLAGS.NUR_SETUP_ANTMASKEX,
+        self.driver.SetModuleSetup(setup_flags=[NUR_MODULESETUP_FLAGS.NUR_SETUP_ANTMASKEX,
                                                NUR_MODULESETUP_FLAGS.NUR_SETUP_SELECTEDANT],
                                    module_setup=module_setup)
 

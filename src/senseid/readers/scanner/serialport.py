@@ -15,12 +15,23 @@ class SerialPortScanner:
 
     def __init__(self, notification_callback: Callable[[SenseidReaderConnectionInfo], None]):
         self.notification_callback = notification_callback
+        self._scan_thread = None
+        self.comports = []
+        self._is_on = False
+
+    def start(self, reset: bool = False):
+        if reset:
+            self.comports = []
+        self._is_on = True
         self._scan_thread = Thread(target=self._scan_job, daemon=True)
         self._scan_thread.start()
-        self.comports = []
+
+    def stop(self):
+        self._is_on = False
+        self._scan_thread.join()
 
     def _scan_job(self):
-        while True:
+        while self._is_on:
             com_port_list = serial.tools.list_ports.comports()
             for com_port in com_port_list:
                 # REDRCP

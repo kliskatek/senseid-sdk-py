@@ -9,9 +9,18 @@ logger = logging.getLogger(__name__)
 
 class MulticastDnsServiceDiscoveryScanner:
 
-    def __init__(self, notification_callback: Callable[[SenseidReaderConnectionInfo], None]):
+    def __init__(self, notification_callback: Callable[[SenseidReaderConnectionInfo], None], autostart: bool = False):
         self.notification_callback = notification_callback
+        self.service_browser: ServiceBrowser | None = None
+        self.zeroconf_instance = Zeroconf(ip_version=IPVersion.V4Only)
         self.ips = []
+
+        if autostart:
+            self.start()
+
+    def start(self, reset: bool = False):
+        if reset:
+            self.ips = []
 
         def on_service_state_change(zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange):
             if 'SpeedwayR' in name:
@@ -29,9 +38,11 @@ class MulticastDnsServiceDiscoveryScanner:
                                     SenseidReaderConnectionInfo(driver=SupportedSenseidReader.OCTANE,
                                                                 connection_string=ip_str))
 
-        ip_version = IPVersion.V4Only
-        zeroconf_instance = Zeroconf(ip_version=ip_version)
         services = [
             "_http._tcp.local.",
         ]
-        ServiceBrowser(zeroconf_instance, services, handlers=[on_service_state_change])
+        self.service_browser = ServiceBrowser(self.zeroconf_instance, services, handlers=[on_service_state_change])
+
+    def stop(self):
+        self.service_browser.cancel()
+        self.service_browser.join()

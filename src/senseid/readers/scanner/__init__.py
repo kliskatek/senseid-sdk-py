@@ -12,17 +12,32 @@ logger = logging.getLogger(__name__)
 
 class SenseidReaderScanner:
 
-    def __init__(self, notification_callback: Callable[[List[SenseidReaderConnectionInfo]], None] = None):
+    def __init__(self, notification_callback: Callable[[SenseidReaderConnectionInfo], None] = None,
+                 autostart: bool = False):
         logger.info('Starting Reader Scanner')
         self.notification_callback = notification_callback
         self.readers: List[SenseidReaderConnectionInfo] = []
-        SerialPortScanner(notification_callback=self._add_reader)
-        MulticastDnsServiceDiscoveryScanner(notification_callback=self._add_reader)
+        self.serial_port_scanner = SerialPortScanner(notification_callback=self._add_reader)
+        self.multicast_dns_service_discovery_scanner = MulticastDnsServiceDiscoveryScanner(
+            notification_callback=self._add_reader)
+        if autostart:
+            self.start()
+
+    def start(self, reset: bool = False):
+        if reset:
+            self.readers: List[SenseidReaderConnectionInfo] = []
+
+        self.serial_port_scanner.start(reset=reset)
+        self.multicast_dns_service_discovery_scanner.start()
+
+    def stop(self):
+        self.serial_port_scanner.stop()
+        self.multicast_dns_service_discovery_scanner.stop()
 
     def _add_reader(self, connection_info: SenseidReaderConnectionInfo):
         self.readers.append(connection_info)
         if self.notification_callback is not None:
-            self.notification_callback(self.readers)
+            self.notification_callback(connection_info)
 
     def get_readers(self):
         return self.readers

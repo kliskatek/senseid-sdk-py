@@ -1,6 +1,5 @@
 import logging
 import time
-from typing import List
 
 from src.senseid.readers import SenseidReaderConnectionInfo, SupportedSenseidReader
 from src.senseid.readers.scanner import SenseidReaderScanner
@@ -8,8 +7,8 @@ from src.senseid.readers.scanner import SenseidReaderScanner
 logging.basicConfig(level=logging.DEBUG)
 
 
-def scanner_notification_callback(reader_list: List[SenseidReaderConnectionInfo]):
-    logging.info(reader_list)
+def scanner_notification_callback(new_reader: SenseidReaderConnectionInfo):
+    logging.info(new_reader)
 
 
 # Scan readers with notifications

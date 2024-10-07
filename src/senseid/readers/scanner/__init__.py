@@ -23,9 +23,11 @@ class SenseidReaderScanner:
         if autostart:
             self.start()
 
-    def start(self, reset: bool = False):
+    def start(self, reset: bool = False, notification_callback: Callable[[SenseidReaderConnectionInfo], None] = None):
         if reset:
             self.readers: List[SenseidReaderConnectionInfo] = []
+        if notification_callback is not None:
+            self.notification_callback = notification_callback
 
         self.serial_port_scanner.start(reset=reset)
         self.multicast_dns_service_discovery_scanner.start()

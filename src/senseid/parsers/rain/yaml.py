@@ -38,6 +38,7 @@ class SenseidRainTypeDef:
     name: str
     description: str
     data_def: List[SenseidRainDataDef]
+    fw_versions: List[int]
 
 
 @dataclass_json

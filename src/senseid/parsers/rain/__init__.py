@@ -38,13 +38,18 @@ class SenseidRainTag(SenseidTag):
         return True
 
     def _parse_senseid_epc(self, epc_bytes: bytearray):
-        senseid_type_bytes = epc_bytes[5:7]
+        senseid_type_bytes = epc_bytes[5:6]
+        fw_version_byte = epc_bytes[6:7]
         senseid_sn_bytes = epc_bytes[7:10]
         id = epc_bytes[0:10].hex().upper()
 
-        senseid_type = struct.unpack('>H', senseid_type_bytes)[0]
+        fw_version = struct.unpack('B', fw_version_byte)[0]
+        sn = struct.unpack('>I', bytearray([0]) + senseid_sn_bytes)[0]
+        senseid_type = struct.unpack('B', senseid_type_bytes)[0]
         if senseid_type not in SENSEID_RAIN_DEF.types:
             self.id = id
+            self.fw_version = None
+            self.sn = None
             self.name = 'Unknown SenseID type'
             self.description = 'Unknown SenseID type'
             self.data = None
@@ -53,6 +58,8 @@ class SenseidRainTag(SenseidTag):
         senseid_value_bytes = epc_bytes[10:]
         senseid_type_config = SENSEID_RAIN_DEF.types[senseid_type]
         self.id = id
+        self.fw_version = fw_version
+        self.sn = sn
         self.name = senseid_type_config.name
         self.description = senseid_type_config.description
         self.data = []
@@ -97,6 +104,8 @@ class SenseidRainTag(SenseidTag):
             self._parse_senseid_epc(epc_bytes)
         else:
             self.id = epc_bytes.hex().upper()
+            self.fw_version = None
+            self.sn = None
             self.name = 'Rain ID'
             self.description = 'Standard Rain ID tag'
             self.data = None

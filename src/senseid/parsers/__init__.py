@@ -24,6 +24,8 @@ class SenseidData:
 @dataclass
 class SenseidTag:
     technology: SenseidTechnologies
+    fw_version: int
+    sn: int
     id: str
     name: str
     description: str

@@ -2,7 +2,6 @@ import datetime
 from dataclasses import dataclass
 from enum import Enum
 from importlib.resources import files
-from pathlib import Path
 from typing import List, Dict
 
 import yaml

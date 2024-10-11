@@ -55,7 +55,7 @@ class SenseidOctane(SenseidReader):
 
     def get_tx_power(self) -> float:
         # Only supporting same power on all antennas
-        return self.driver.get_tx_power()
+        return self.driver.get_tx_power()[0]
 
     def set_tx_power(self, dbm: float):
         # Only supporting same power on all antennas

@@ -6,9 +6,9 @@ from src.senseid.parsers import SenseidTag
 from src.senseid.readers import SupportedSenseidReader, create_SenseidReader
 from src.senseid.readers.scanner import SenseidReaderScanner
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
-scanner = SenseidReaderScanner()
+scanner = SenseidReaderScanner(autostart=True)
 connection_info = scanner.wait_for_reader_of_type(SupportedSenseidReader.NURAPI, timeout_s=5)
 
 if connection_info is None:
@@ -17,6 +17,7 @@ if connection_info is None:
 
 sid_reader = create_SenseidReader(connection_info)
 sid_reader.connect(connection_info.connection_string)
+#sid_reader.driver.SetLogLevel(NUR_LOG.NUR_LOG_ALL)
 
 logging.info('Setting antenna configuration')
 sid_reader.set_antenna_config(antenna_config_array=[True])
@@ -37,13 +38,15 @@ sid_reader.set_tx_power(sid_reader.get_details().max_tx_power)
 sid_reader.get_tx_power()
 
 
-def notification_callback(epc: SenseidTag):
-    logging.info(epc)
+def notification_callback(tag: SenseidTag):
+    if tag.id.startswith('000000'):
+        logging.info(tag)
 
 
 logging.info('Starting inventory')
 sid_reader.start_inventory_async(notification_callback=notification_callback)
 
+input()
 time.sleep(1)
 
 logging.info('Stopping inventory')

@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 from dataclasses_json import dataclass_json
 
-from src.senseid.parsers import SenseidTag
+from ..parsers import SenseidTag
 
 
 class SupportedSenseidReader(Enum):

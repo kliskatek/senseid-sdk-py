@@ -95,7 +95,7 @@ class SenseidNurapi(SenseidReader):
             logger.warning('Power set to min power: ' + str(dbm))
 
         module_setup = NurModuleSetup()
-        module_setup.tx_level = (self.device_caps.maxTxdBm - dbm) * self.device_caps.txAttnStep
+        module_setup.tx_level = int((self.device_caps.maxTxdBm - dbm) * self.device_caps.txAttnStep)
         self.driver.SetModuleSetup(setup_flags=[NUR_MODULESETUP_FLAGS.NUR_SETUP_TXLEVEL], module_setup=module_setup)
 
     def get_antenna_config(self) -> List[bool]:

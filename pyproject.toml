@@ -11,7 +11,8 @@ requires-python = ">=3.8"
 license = "MIT"
 keywords = []
 authors = [
-  { name = "U.N. Owen", email = "void@some.where" },
+  { name = "Ibon Zalbide", email = "ibon.zalbide@kliskatek.com" },
+  { name = "Aritz Alonso", email = "aritz.alonso@kliskatek.com" },
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -69,18 +70,4 @@ exclude_lines = [
   "no cov",
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
-]
-
-[tool.hatch.build.targets.wheel]
-artifacts = [
-  "*.so",
-  "*.dll",
-  "*.yaml",
-]
-
-[tool.hatch.build.targets.sdist]
-artifacts = [
-  "*.so",
-  "*.dll",
-  "*.yaml",
 ]

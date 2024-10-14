@@ -12,6 +12,7 @@ class SupportedSenseidReader(Enum):
     REDRCP = 'REDRCP'
     NURAPI = 'NURAPI'
     OCTANE = 'OCTANE'
+    LLRP = 'LLRP'
 
 
 @dataclass_json
@@ -85,3 +86,6 @@ def create_SenseidReader(reader_info: SenseidReaderConnectionInfo = None, notifi
     if reader_info.driver == SupportedSenseidReader.NURAPI:
         from .nurapi import SenseidNurapi
         return SenseidNurapi()
+    if reader_info.driver == SupportedSenseidReader.LLRP:
+        from .llrp import SenseidLlrp
+        return SenseidLlrp()

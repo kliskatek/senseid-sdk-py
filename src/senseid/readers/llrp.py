@@ -59,23 +59,46 @@ class LlrpCommunicationStandard(Enum):
     New_Zealand_Higher_Band_6W = 38
 
 
+class ImpinjReaderMode(Enum):
+    MaxThroughput = 0
+    Hybrid = 1
+    DenseReaderM4 = 2
+    DenseReaderM8 = 3
+    MaxMiller = 4
+    DenseReaderM4Two = 5
+    AutoSetDenseReader = 1000
+    AutoSetDenseReaderDeepScan = 1002
+    AutoSetStaticFast = 1003
+    AutoSetStaticDRM = 1004
+    AutoSetCustom = 1005
+
+
+class ImpinjSearchMode(Enum):
+    ReaderSelected = 0
+    SingleTarget = 1
+    DualTarget = 2
+    TagFocus = 3
+    SingleTargetReset = 5
+    DualTargetBtoASelect = 6
+
+
 class SenseidLlrp(SenseidReader):
 
     def __init__(self):
         self.driver: LLRPReaderClient | None = None
-        self.config: LLRPReaderConfig | None = None
         self.notification_callback = None
         self.details = SenseidReaderDetails()
         self._tx_power: float | None = None
-        self._antennas: List[bool] | None = None
+        self._antennas: List[bool] = [True]
 
     def connect(self, connection_string: str):
         try:
-            self.config = LLRPReaderConfig()
-            self.config.start_inventory = False
-            self.config.reset_on_connect = True
-            self.config.impinj_extended_configuration = True
-            self.driver = LLRPReaderClient('192.168.17.246', LLRP_DEFAULT_PORT, self.config)
+            self.connection_string = connection_string
+            config = LLRPReaderConfig()
+            config.start_inventory = False
+            config.reset_on_connect = True
+            config.impinj_extended_configuration = True
+            self.driver = LLRPReaderClient(self.connection_string, LLRP_DEFAULT_PORT, config)
 
             capabilities_received = False
 
@@ -102,6 +125,7 @@ class SenseidLlrp(SenseidReader):
 
             while not capabilities_received:
                 time.sleep(0.1)
+            self.driver.disconnect(None)
 
             return True
         except Exception as e:
@@ -110,8 +134,10 @@ class SenseidLlrp(SenseidReader):
 
     def _llrp_notification_callback(self, reader: LLRPReaderClient, tag_reports):
         logger.debug(tag_reports)
-        #if self.notification_callback is not None:
-        #    self.notification_callback(SenseidRainTag(epc=octane_tag_report.Epc))
+        if self.notification_callback is not None:
+            for tag in tag_reports:
+                for n in range(tag['TagSeenCount']):
+                    self.notification_callback(SenseidRainTag(epc=tag['EPC'].decode('utf-8')))
 
     def disconnect(self):
         self.driver.disconnect()
@@ -134,7 +160,7 @@ class SenseidLlrp(SenseidReader):
         if dbm < self.details.min_tx_power:
             dbm = self.details.min_tx_power
             logger.warning('Power set to min power: ' + str(dbm))
-        #self.driver.set_tx_power(dbm=dbm)
+        self._tx_power = dbm
 
     def get_antenna_config(self) -> List[bool]:
         return self._antennas
@@ -143,14 +169,49 @@ class SenseidLlrp(SenseidReader):
         if not (True in antenna_config_array):
             antenna_config_array[0] = True
             logger.warning('At least one antenna needs to be active. Enabling antenna 1.')
-        #self.driver.set_antenna_config(antenna_config_array)
+        self._antennas = antenna_config_array
 
     def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None]):
         self.notification_callback = notification_callback
-        self.config.start_inventory = True
-        self.config.duration = 0.2
-        self.driver.update_config(self.config)
+
+        config = LLRPReaderConfig()
+        config.start_inventory = True
+        config.reset_on_connect = True
+        config.impinj_extended_configuration = True
+        config.duration = 0.2
+        config.tag_content_selector = {
+            'EnableROSpecID': False,
+            'EnableSpecIndex': False,
+            'EnableInventoryParameterSpecID': False,
+            'EnableAntennaID': False,
+            'EnableChannelIndex': False,
+            'EnablePeakRSSI': False,
+            'EnableFirstSeenTimestamp': False,
+            'EnableLastSeenTimestamp': False,
+            'EnableTagSeenCount': True,
+            'EnableAccessSpecID': False,
+            'C1G2EPCMemorySelector': {
+                'EnableCRC': False,
+                'EnablePCBits': False,
+            }
+        }
+        config.impinj_search_mode = ImpinjReaderMode.DenseReaderM4.value
+        config.mode_identifier = ImpinjSearchMode.DualTarget.value
+        config.antennas = []
+        config.tx_power = {}
+        config.tx_power_dbm = {}
+        for idx, enable in enumerate(self._antennas):
+            if enable:
+                config.antennas.append(idx + 1)
+                config.tx_power[idx + 1] = 0
+                config.tx_power_dbm[idx + 1] = self._tx_power
+
+        self.driver = LLRPReaderClient(self.connection_string, LLRP_DEFAULT_PORT, config)
+        self.driver.add_tag_report_callback(self._llrp_notification_callback)
+        self.driver.connect()
 
     def stop_inventory_async(self):
-        self.config.start_inventory = False
-        self.driver.update_config(self.config)
+        config = LLRPReaderConfig()
+        config.start_inventory = False
+        config.reset_on_connect = True
+        self.driver.update_config(config)

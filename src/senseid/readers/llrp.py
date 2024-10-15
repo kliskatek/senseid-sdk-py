@@ -73,6 +73,7 @@ class SenseidLlrp(SenseidReader):
         try:
             self.config = LLRPReaderConfig()
             self.config.start_inventory = False
+            self.config.reset_on_connect = True
             self.config.impinj_extended_configuration = True
             self.driver = LLRPReaderClient('192.168.17.246', LLRP_DEFAULT_PORT, self.config)
 
@@ -80,21 +81,20 @@ class SenseidLlrp(SenseidReader):
 
             def on_get_capabilities(reader: LLRPReaderClient, state):
                 nonlocal capabilities_received
-                if state == LLRPReaderState.STATE_SENT_GET_CONFIG:
-                    if not capabilities_received:
-                        logger.debug('TODO: parse capabilities')
-                        self.details.model_name = self.driver.llrp.capabilities['ImpinjDetailedVersion'][
-                            'ModelName'].decode('utf-8')
-                        self.details.firmware_version = self.driver.llrp.capabilities['ImpinjDetailedVersion'][
-                            'FirmwareVersion'].decode('utf-8')
-                        self.details.antenna_count = self.driver.llrp.capabilities['GeneralDeviceCapabilities'][
-                            'MaxNumberOfAntennaSupported']
-                        self.details.min_tx_power = self.driver.llrp.tx_power_table[1]
-                        self.details.max_tx_power = self.driver.llrp.tx_power_table[-1]
-                        self.details.region = LlrpCommunicationStandard(
-                            self.driver.llrp.capabilities['RegulatoryCapabilities']['CommunicationsStandard']).name
-                        logger.debug(reader.llrp.capabilities)
-                        capabilities_received = True
+                if not capabilities_received:
+                    logger.debug('TODO: parse capabilities with non impinj readers')
+                    self.details.model_name = self.driver.llrp.capabilities['ImpinjDetailedVersion'][
+                        'ModelName'].decode('utf-8')
+                    self.details.firmware_version = self.driver.llrp.capabilities['ImpinjDetailedVersion'][
+                        'FirmwareVersion'].decode('utf-8')
+                    self.details.antenna_count = self.driver.llrp.capabilities['GeneralDeviceCapabilities'][
+                        'MaxNumberOfAntennaSupported']
+                    self.details.min_tx_power = self.driver.llrp.tx_power_table[1]
+                    self.details.max_tx_power = self.driver.llrp.tx_power_table[-1]
+                    self.details.region = LlrpCommunicationStandard(
+                        self.driver.llrp.capabilities['RegulatoryCapabilities']['CommunicationsStandard']).name
+                    logger.debug(reader.llrp.capabilities)
+                    capabilities_received = True
 
             self.driver.add_state_callback(LLRPReaderState.STATE_SENT_GET_CONFIG, on_get_capabilities)
             self.driver.add_tag_report_callback(self._llrp_notification_callback)

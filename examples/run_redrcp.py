@@ -1,6 +1,5 @@
 import logging
 import logging.config
-import time
 
 from src.senseid.parsers import SenseidTag
 from src.senseid.readers import SupportedSenseidReader, create_SenseidReader

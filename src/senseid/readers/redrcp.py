@@ -1,7 +1,8 @@
 import logging
 from typing import List, Callable
 
-from redrcp import RedRcp, NotificationTpeCuiii, NotificationTpeCuiiiRssi, NotificationTpeCuiiiTid
+from redrcp import RedRcp, NotificationTpeCuiii, NotificationTpeCuiiiRssi, NotificationTpeCuiiiTid, AntiCollisionMode, \
+    ParamDR, ParamModulation, ParamSel, ParamSession, ParamTarget
 
 from ..parsers import SenseidTag
 from ..parsers.rain import SenseidRainTag
@@ -19,6 +20,15 @@ class SenseidReaderRedRcp(SenseidReader):
         if not self.driver.connect(connection_string=connection_string):
             return False
         self.driver.set_notification_callback(self._redrcp_notification_callback)
+        self.driver.set_anti_collision_mode(AntiCollisionMode.MANUAL, start_q=4, min_q=0, max_q=7)
+        self.driver.set_query_parameters(dr=ParamDR.DR_64_DIV_3,
+                                         modulation=ParamModulation.MILLER_4,
+                                         pilot_tone=False,
+                                         sel=ParamSel.ALL_0,
+                                         session=ParamSession.S1,
+                                         target=ParamTarget.A,
+                                         target_toggle=True,
+                                         q=4)
         return True
 
     def _redrcp_notification_callback(self, red_rcp_notification: NotificationTpeCuiii |

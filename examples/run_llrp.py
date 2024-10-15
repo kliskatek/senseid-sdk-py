@@ -9,7 +9,7 @@ from src.senseid.readers.scanner import SenseidReaderScanner
 logging.basicConfig(level=logging.DEBUG)
 
 scanner = SenseidReaderScanner(autostart=True)
-connection_info = scanner.wait_for_reader_of_type(SupportedSenseidReader.OCTANE, timeout_s=5)
+connection_info = scanner.wait_for_reader_of_type(SupportedSenseidReader.LLRP, timeout_s=5)
 
 if connection_info is None:
     print('No reader found')
@@ -44,10 +44,11 @@ def notification_callback(epc: SenseidTag):
 logging.info('Starting inventory')
 sid_reader.start_inventory_async(notification_callback=notification_callback)
 
-time.sleep(3)
+time.sleep(1)
 
 logging.info('Stopping inventory')
 sid_reader.stop_inventory_async()
+time.sleep(3)
 
 logging.info('Disconnecting from reader')
 sid_reader.disconnect()

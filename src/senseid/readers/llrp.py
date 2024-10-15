@@ -126,6 +126,7 @@ class SenseidLlrp(SenseidReader):
             while not capabilities_received:
                 time.sleep(0.1)
             self.driver.disconnect(None)
+            self._tx_power = self.details.max_tx_power
 
             return True
         except Exception as e:
@@ -136,8 +137,8 @@ class SenseidLlrp(SenseidReader):
         logger.debug(tag_reports)
         if self.notification_callback is not None:
             for tag in tag_reports:
-                for n in range(tag['TagSeenCount']):
-                    self.notification_callback(SenseidRainTag(epc=tag['EPC'].decode('utf-8')))
+                #for n in range(tag['TagSeenCount']):
+                self.notification_callback(SenseidRainTag(epc=tag['EPC'].decode('utf-8')))
 
     def disconnect(self):
         self.driver.disconnect()
@@ -215,3 +216,4 @@ class SenseidLlrp(SenseidReader):
         config.start_inventory = False
         config.reset_on_connect = True
         self.driver.update_config(config)
+        self.driver.disconnect(None)

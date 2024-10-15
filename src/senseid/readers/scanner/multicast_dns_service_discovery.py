@@ -37,6 +37,9 @@ class MulticastDnsServiceDiscoveryScanner:
                                 self.notification_callback(
                                     SenseidReaderConnectionInfo(driver=SupportedSenseidReader.OCTANE,
                                                                 connection_string=ip_str))
+                                self.notification_callback(
+                                    SenseidReaderConnectionInfo(driver=SupportedSenseidReader.LLRP,
+                                                                connection_string=ip_str))
 
         services = [
             "_http._tcp.local.",

@@ -48,4 +48,6 @@ class SerialPortScanner:
                         self.comports.append(com_port.name)
                         self.notification_callback(SenseidReaderConnectionInfo(driver=SupportedSenseidReader.NURAPI,
                                                                                connection_string=com_port.name))
+                        self.notification_callback(SenseidReaderConnectionInfo(driver=SupportedSenseidReader.NURAPY,
+                                                                               connection_string=com_port.name))
             time.sleep(1)

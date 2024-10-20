@@ -84,12 +84,13 @@ class ImpinjSearchMode(Enum):
 
 class SenseidLlrp(SenseidReader):
 
-    def __init__(self):
+    def __init__(self, is_impinj: bool):
         self.driver: LLRPReaderClient | None = None
         self.notification_callback = None
         self.details = SenseidReaderDetails()
         self._tx_power: float | None = None
         self._antennas: List[bool] = [True]
+        self._is_impinj: bool = is_impinj
 
     def connect(self, connection_string: str):
         try:
@@ -97,7 +98,8 @@ class SenseidLlrp(SenseidReader):
             config = LLRPReaderConfig()
             config.start_inventory = False
             config.reset_on_connect = True
-            config.impinj_extended_configuration = True
+            if self._is_impinj:
+                config.impinj_extended_configuration = True
             self.driver = LLRPReaderClient(self.connection_string, LLRP_DEFAULT_PORT, config)
 
             capabilities_received = False
@@ -106,10 +108,17 @@ class SenseidLlrp(SenseidReader):
                 nonlocal capabilities_received
                 if not capabilities_received:
                     logger.debug('TODO: parse capabilities with non impinj readers')
-                    self.details.model_name = self.driver.llrp.capabilities['ImpinjDetailedVersion'][
+
+                    if self._is_impinj:
+                        self.details.model_name = self.driver.llrp.capabilities['ImpinjDetailedVersion'][
                         'ModelName'].decode('utf-8')
-                    self.details.firmware_version = self.driver.llrp.capabilities['ImpinjDetailedVersion'][
+                        self.details.firmware_version = self.driver.llrp.capabilities['ImpinjDetailedVersion'][
                         'FirmwareVersion'].decode('utf-8')
+                    else:
+                        self.details.model_name = self.driver.llrp.capabilities['GeneralDeviceCapabilities'][
+                        'ModelName']
+                        self.details.firmware_version = self.driver.llrp.capabilities['GeneralDeviceCapabilities'][
+                        'ReaderFirmwareVersion']
                     self.details.antenna_count = self.driver.llrp.capabilities['GeneralDeviceCapabilities'][
                         'MaxNumberOfAntennaSupported']
                     self.details.min_tx_power = self.driver.llrp.tx_power_table[1]
@@ -178,7 +187,8 @@ class SenseidLlrp(SenseidReader):
         config = LLRPReaderConfig()
         config.start_inventory = True
         config.reset_on_connect = True
-        config.impinj_extended_configuration = True
+        if self._is_impinj:
+            config.impinj_extended_configuration = True
         config.duration = 0.2
         config.tag_content_selector = {
             'EnableROSpecID': False,
@@ -196,7 +206,8 @@ class SenseidLlrp(SenseidReader):
                 'EnablePCBits': False,
             }
         }
-        config.impinj_search_mode = ImpinjReaderMode.DenseReaderM4.value
+        if self._is_impinj:
+            config.impinj_search_mode = ImpinjReaderMode.DenseReaderM4.value
         config.mode_identifier = ImpinjSearchMode.DualTarget.value
         config.antennas = []
         config.tx_power = {}

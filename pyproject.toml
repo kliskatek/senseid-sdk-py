@@ -30,6 +30,7 @@ dependencies = [
   'dataclasses_json',
   'redrcp',
   'nurapi',
+  'nurapy',
   'octane-sdk-wrapper'
 ]
 

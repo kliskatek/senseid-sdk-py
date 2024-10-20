@@ -11,6 +11,7 @@ from ..parsers import SenseidTag
 class SupportedSenseidReader(Enum):
     REDRCP = 'REDRCP'
     NURAPI = 'NURAPI'
+    NURAPY = 'NURAPY'
     OCTANE = 'OCTANE'
     LLRP = 'LLRP'
 
@@ -86,6 +87,9 @@ def create_SenseidReader(reader_info: SenseidReaderConnectionInfo = None, notifi
     if reader_info.driver == SupportedSenseidReader.NURAPI:
         from .nurapi import SenseidNurapi
         return SenseidNurapi()
+    if reader_info.driver == SupportedSenseidReader.NURAPY:
+        from .nurapy import SenseidNurapy
+        return SenseidNurapy()
     if reader_info.driver == SupportedSenseidReader.LLRP:
         from .llrp import SenseidLlrp
-        return SenseidLlrp()
+        return SenseidLlrp(is_impinj=False)

@@ -48,7 +48,6 @@ class SenseidNurapy(SenseidReader):
             self.driver.start_inventory_stream()
         for tag in tags:
             self.notification_callback(SenseidRainTag(epc=tag.epc))
-        self.driver.clear_id_buffer()
         self.driver.give_me_more()
 
     def disconnect(self):

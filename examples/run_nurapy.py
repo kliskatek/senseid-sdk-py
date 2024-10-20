@@ -32,9 +32,13 @@ sid_reader.set_tx_power(sid_reader.get_details().max_tx_power + 10)
 logging.info('Setting max TX power')
 sid_reader.set_tx_power(sid_reader.get_details().max_tx_power)
 
-
+n_tags = 0
+start = time.monotonic()
 def notification_callback(tag: SenseidTag):
+    global n_tags, start
     logging.info(tag)
+    n_tags += 1
+    print(n_tags/(time.monotonic() - start))
 
 
 logging.info('Starting inventory')

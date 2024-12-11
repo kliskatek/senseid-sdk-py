@@ -40,9 +40,9 @@ dev = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/U.N. Owen/senseid#readme"
-Issues = "https://github.com/U.N. Owen/senseid/issues"
-Source = "https://github.com/U.N. Owen/senseid"
+Documentation = "https://github.com/kliskatek/senseid#readme"
+Issues = "https://github.com/kliskatek/senseid/issues"
+Source = "https://github.com/kliskatek/senseid"
 
 [tool.hatch.version]
 path = "src/senseid/__about__.py"

@@ -9,13 +9,13 @@ from src.senseid.readers.scanner import SenseidReaderScanner
 logging.basicConfig(level=logging.DEBUG)
 
 scanner = SenseidReaderScanner(autostart=True)
-connection_info = scanner.wait_for_reader_of_type(SupportedSenseidReader.LLRP, timeout_s=5)
+connection_info = scanner.wait_for_reader_of_type(SupportedSenseidReader.SPEEDWAY, timeout_s=5)
 
 if connection_info is None:
     print('No reader found')
     exit()
 
-connection_info.driver = SupportedSenseidReader.LLRP
+connection_info.driver = SupportedSenseidReader.SPEEDWAY
 sid_reader = create_SenseidReader(connection_info)
 sid_reader.connect(connection_info.connection_string)
 

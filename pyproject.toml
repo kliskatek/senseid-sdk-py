@@ -31,7 +31,9 @@ dependencies = [
   'redrcp',
   'nurapi',
   'nurapy',
-  'octane-sdk-wrapper'
+  'octane-sdk-wrapper',
+  'zeroconf',
+  'sllurp'
 ]
 
 [project.optional-dependencies]

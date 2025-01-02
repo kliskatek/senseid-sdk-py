@@ -38,7 +38,7 @@ class MulticastDnsServiceDiscoveryScanner:
                                     SenseidReaderConnectionInfo(driver=SupportedSenseidReader.OCTANE,
                                                                 connection_string=ip_str))
                                 self.notification_callback(
-                                    SenseidReaderConnectionInfo(driver=SupportedSenseidReader.LLRP,
+                                    SenseidReaderConnectionInfo(driver=SupportedSenseidReader.SPEEDWAY,
                                                                 connection_string=ip_str))
 
             if 'ThingMagic Mercury' in name:
@@ -53,7 +53,7 @@ class MulticastDnsServiceDiscoveryScanner:
                                 logger.info('New Mercury readers found: ' + ip_str)
                                 self.ips.append(ip_str)
                                 self.notification_callback(
-                                    SenseidReaderConnectionInfo(driver=SupportedSenseidReader.LLRP,
+                                    SenseidReaderConnectionInfo(driver=SupportedSenseidReader.SPEEDWAY,
                                                                 connection_string=ip_str))
 
         services = [

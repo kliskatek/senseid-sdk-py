@@ -13,7 +13,7 @@ class SupportedSenseidReader(Enum):
     NURAPI = 'NURAPI'
     NURAPY = 'NURAPY'
     OCTANE = 'OCTANE'
-    LLRP = 'LLRP'
+    SPEEDWAY = 'SPEEDWAY'
 
 
 @dataclass_json
@@ -90,6 +90,6 @@ def create_SenseidReader(reader_info: SenseidReaderConnectionInfo = None, notifi
     if reader_info.driver == SupportedSenseidReader.NURAPY:
         from .nurapy import SenseidNurapy
         return SenseidNurapy()
-    if reader_info.driver == SupportedSenseidReader.LLRP:
+    if reader_info.driver == SupportedSenseidReader.SPEEDWAY:
         from .llrp import SenseidLlrp
-        return SenseidLlrp(is_impinj=False)
+        return SenseidLlrp(is_impinj=True)

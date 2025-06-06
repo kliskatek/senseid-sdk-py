@@ -14,6 +14,7 @@ class SupportedSenseidReader(Enum):
     NURAPY = 'NURAPY'
     OCTANE = 'OCTANE'
     SPEEDWAY = 'SPEEDWAY'
+    KLSBLELCR = 'KLSBLELCR'
 
 
 @dataclass_json
@@ -93,3 +94,6 @@ def create_SenseidReader(reader_info: SenseidReaderConnectionInfo = None, notifi
     if reader_info.driver == SupportedSenseidReader.SPEEDWAY:
         from .llrp import SenseidLlrp
         return SenseidLlrp(is_impinj=True)
+    if reader_info.driver == SupportedSenseidReader.KLSBLELCR:
+        from .klsblelcr import SenseidKlSbleLcr
+        return SenseidKlSbleLcr()

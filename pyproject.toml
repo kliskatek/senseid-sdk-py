@@ -32,8 +32,10 @@ dependencies = [
   'nurapi',
   'nurapy',
   'octane-sdk-wrapper',
+  'driver-sble-py-klsblelcf',
   'zeroconf',
-  'sllurp'
+  'sllurp',
+  'usb-monitor'
 ]
 
 [project.optional-dependencies]

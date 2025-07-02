@@ -45,23 +45,21 @@ class SenseidKlSbleLcr(SenseidReader):
         return self.details
 
     def get_tx_power(self) -> float:
-        current_tx_dbm = 10
-        logger.debug('get_tx_power: ' + str(current_tx_dbm))
-        return current_tx_dbm
+        return self.driver.get_tx_power()
 
     def set_tx_power(self, dbm: float):
-        logger.debug('set_tx_power: ' + str(dbm))
+        return self.driver.set_tx_power(dbm)
 
     def get_antenna_config(self) -> List[bool]:
         antenna_config_array = [True]
         return antenna_config_array
 
     def set_antenna_config(self, antenna_config_array: List[bool]):
-        logger.debug('set_antenna_config: ' + str(antenna_config_array))
+        logger.debug('Antenna configuration is fixed')
 
     def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None]):
         self.notification_callback = notification_callback
-        return self.driver.configure_cw(True, 500, 500)
+        return self.driver.start_cw()
 
     def stop_inventory_async(self):
-        return self.driver.configure_cw(False, 0, 0)
+        return self.driver.stop_cw()

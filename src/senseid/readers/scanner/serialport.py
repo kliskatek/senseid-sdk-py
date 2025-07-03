@@ -77,7 +77,7 @@ class SerialPortScanner:
                                                                                    connection_string=port))
             else:
                 for com_port in com_port_list:
-                    if 'KL-SBLE-LCR' in str(com_port.product):
+                    if 'KL-SBLE-LCR' in str(com_port.serial_number):
                         if com_port.device not in self.comports:
                             logger.info('New SBLE-LCR found: ' + com_port.product
                                         + ' (SN:' + com_port.serial_number

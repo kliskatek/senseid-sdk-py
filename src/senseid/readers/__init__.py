@@ -15,6 +15,7 @@ class SupportedSenseidReader(Enum):
     OCTANE = 'OCTANE'
     SPEEDWAY = 'SPEEDWAY'
     KLSBLELCR = 'KLSBLELCR'
+    ACR1552 = 'ACR1552'
 
 
 @dataclass_json
@@ -97,3 +98,6 @@ def create_SenseidReader(reader_info: SenseidReaderConnectionInfo = None, notifi
     if reader_info.driver == SupportedSenseidReader.KLSBLELCR:
         from .klsblelcr import SenseidKlSbleLcr
         return SenseidKlSbleLcr()
+    if reader_info.driver == SupportedSenseidReader.ACR1552:
+        from .acr1552 import SenseidAcr1552
+        return SenseidAcr1552()

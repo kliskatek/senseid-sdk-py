@@ -35,7 +35,8 @@ dependencies = [
   'driver-sble-py-klsblelcf',
   'zeroconf',
   'sllurp',
-  'usb-monitor'
+  'usb-monitor',
+  'driver-snfc-py-acr1552'
 ]
 
 [project.optional-dependencies]

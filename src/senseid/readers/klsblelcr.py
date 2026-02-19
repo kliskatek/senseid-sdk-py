@@ -36,7 +36,7 @@ class SenseidKlSbleLcr(SenseidReader):
             self.details = SenseidReaderDetails(
                 model_name='KL-SBLE-LCR',
                 region='EU',
-                firmware_version='0.0.1',
+                firmware_version='1.0.0',
                 antenna_count=1,
                 min_tx_power=10,
                 max_tx_power=31.5
@@ -59,7 +59,7 @@ class SenseidKlSbleLcr(SenseidReader):
 
     def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None]):
         self.notification_callback = notification_callback
-        return self.driver.start_cw()
+        return self.driver.start()
 
     def stop_inventory_async(self):
-        return self.driver.stop_cw()
+        return self.driver.stop()

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class SenseidAcr1552:
 
     NTAG5_NDEF_BASE_BLOCK = 0
-    NTAG5_NDEF_NBLOCKS = 12
+    NTAG5_NDEF_HEADER_NBLOCKS = 2
 
     NTAG5_IDX_BLOCK = 50
     NTAG5_IDX_NBLOCKS = 1
@@ -63,7 +63,19 @@ class SenseidAcr1552:
         return self.driver.get_uid()
 
     def read_ndef(self, uid=None) -> SenseidNfcTag:
-        data = self.driver.read_data(self.NTAG5_NDEF_BASE_BLOCK, self.NTAG5_NDEF_NBLOCKS)
+        # First read: get CC + NDEF TLV header to determine message length
+        header = self.driver.read_data(self.NTAG5_NDEF_BASE_BLOCK, self.NTAG5_NDEF_HEADER_NBLOCKS)
+        if header is None or len(header) < 6:
+            return None
+        # Verify CC (E1 40) and NDEF TLV type (03)
+        if header[0] != 0xE1 or header[1] != 0x40 or header[4] != 0x03:
+            return None
+        # NDEF length at byte 5: total bytes = CC(4) + TLV type(1) + TLV length(1) + payload
+        ndef_length = header[5]
+        total_bytes = 4 + 1 + 1 + ndef_length
+        total_blocks = (total_bytes + 3) // 4  # Round up to full blocks
+        # Second read: get the full NDEF data
+        data = self.driver.read_data(self.NTAG5_NDEF_BASE_BLOCK, total_blocks)
         if data is None:
             return None
         uid_str = bytearray(uid).hex().upper() if uid else None

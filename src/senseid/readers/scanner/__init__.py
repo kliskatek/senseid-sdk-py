@@ -18,10 +18,13 @@ class SenseidReaderScanner:
         logger.info('Starting Reader Scanner')
         self.notification_callback = notification_callback
         self.readers: List[SenseidReaderConnectionInfo] = []
-        self.serial_port_scanner = SerialPortScanner(notification_callback=self._add_reader)
+        self.serial_port_scanner = SerialPortScanner(notification_callback=self._add_reader,
+                                                     removal_callback=self._remove_reader)
         self.multicast_dns_service_discovery_scanner = MulticastDnsServiceDiscoveryScanner(
-            notification_callback=self._add_reader)
-        self.pcsc_scanner = PcscScanner(notification_callback=self._add_reader)
+            notification_callback=self._add_reader,
+            removal_callback=self._remove_reader)
+        self.pcsc_scanner = PcscScanner(notification_callback=self._add_reader,
+                                        removal_callback=self._remove_reader)
         if autostart:
             self.start()
 
@@ -42,6 +45,13 @@ class SenseidReaderScanner:
 
     def _add_reader(self, connection_info: SenseidReaderConnectionInfo):
         self.readers.append(connection_info)
+        if self.notification_callback is not None:
+            self.notification_callback(connection_info)
+
+    def _remove_reader(self, connection_info: SenseidReaderConnectionInfo):
+        self.readers = [r for r in self.readers
+                        if not (r.driver == connection_info.driver
+                                and r.connection_string == connection_info.connection_string)]
         if self.notification_callback is not None:
             self.notification_callback(connection_info)
 

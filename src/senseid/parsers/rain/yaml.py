@@ -24,6 +24,7 @@ class SenseidTransformType(Enum):
 @dataclass
 class SenseidRainDataDef:
     magnitude: str
+    magnitude_short: str
     unit_long: str
     unit_short: str
     type: SenseidValueType

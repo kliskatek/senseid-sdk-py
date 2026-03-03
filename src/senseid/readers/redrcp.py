@@ -77,7 +77,8 @@ class SenseidReaderRedRcp(SenseidReader):
         # RED4S has a single antenna
         pass
 
-    def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None]):
+    def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None],
+                              error_callback=None):
         self.notification_callback = notification_callback
         return self.driver.start_auto_read2()
 

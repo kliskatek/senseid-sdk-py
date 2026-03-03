@@ -1,10 +1,9 @@
 import logging
-from dataclasses import dataclass
 from enum import Enum
-
-from dataclasses_json import dataclass_json
+from typing import List, Tuple, Optional
 
 from .. import SenseidData, SenseidTag, SenseidTechnologies
+from .yaml import SENSEID_NFC_DEF, SenseidNfcDataDef
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +54,7 @@ URI_PREFIXES = {
 
 
 def convert_to_uint(data, uint_size, endianness):
-    """
-    Converts raw bytes into integers according to size and endianness.
-    - data: bytearray or list of bytes
-    - uint_size: number of bytes per integer (e.g. 2 for uint16, 4 for uint32)
-    - endianness: True for big-endian, False for little-endian
-    """
+    """Converts raw bytes into integers according to size and endianness."""
     if data is None:
         return None
 
@@ -79,93 +73,158 @@ def convert_to_uint(data, uint_size, endianness):
     return result
 
 
-@dataclass_json
-@dataclass
-class SenseidNfcTag(SenseidTag):
+def parse_nfc_ndef(ndef_data: bytearray, uid: str = None) -> Tuple[Optional[SenseidTag], Optional[int]]:
+    """Parse NDEF data into a SenseidTag + identified type_id.
 
-    def __init__(self, ndef_data: bytearray, uid: str = None):
-        self.technology = SenseidTechnologies.NFC
-        self.parse_ndef(ndef_data, uid)
+    Returns (tag, type_id) where type_id is used for subsequent BULK parsing.
+    Returns (None, None) if NDEF is invalid.
+    """
+    if ndef_data is None or len(ndef_data) < 11:
+        logger.debug(f"NDEF packet too short: {len(ndef_data) if ndef_data else 0} bytes")
+        return _unknown_tag(uid), None
 
-    def parse_ndef(self, ndef_data: bytearray, uid: str = None):
-        if ndef_data is None or len(ndef_data) < 11:
-            self._set_unknown(uid)
-            logger.debug(f"NDEF packet too short: {len(ndef_data) if ndef_data else 0} bytes")
-            return
+    # Verify CC file (E1 40)
+    if ndef_data[0] != 0xE1 or ndef_data[1] != 0x40:
+        logger.debug(f"Invalid CC file: {ndef_data[0]:02X} {ndef_data[1]:02X}")
+        return _unknown_tag(uid), None
 
-        # Verify CC file (E1 40)
-        if ndef_data[0] != 0xE1 or ndef_data[1] != 0x40:
-            self._set_unknown(uid)
-            logger.debug(f"Invalid CC file: {ndef_data[0]:02X} {ndef_data[1]:02X}")
-            return
+    # Verify NDEF TLV
+    if ndef_data[4] != 0x03:
+        logger.debug(f"Invalid NDEF TLV: {ndef_data[4]:02X}")
+        return _unknown_tag(uid), None
 
-        # Verify NDEF TLV
-        if ndef_data[4] != 0x03:
-            self._set_unknown(uid)
-            logger.debug(f"Invalid NDEF TLV: {ndef_data[4]:02X}")
-            return
+    # Verify type 'U' (URI)
+    if ndef_data[9] != 0x55:
+        logger.debug(f"NDEF type is not URI: {ndef_data[9]:02X}")
+        return _unknown_tag(uid), None
 
-        # Verify type 'U' (URI)
-        if ndef_data[9] != 0x55:
-            self._set_unknown(uid)
-            logger.debug(f"NDEF type is not URI: {ndef_data[9]:02X}")
-            return
+    # URI Identifier Code
+    uri_prefix = URI_PREFIXES.get(ndef_data[10], "")
 
-        # URI Identifier Code
-        uri_prefix = URI_PREFIXES.get(ndef_data[10], "")
+    # Extract payload (URL)
+    payload_length = ndef_data[8]
+    payload_start = 11
+    payload_end = payload_start + payload_length - 1  # -1 because URI ID is already counted
 
-        # Extract payload (URL)
-        payload_length = ndef_data[8]
-        payload_start = 11
-        payload_end = payload_start + payload_length - 1  # -1 because URI ID is already counted
+    if payload_end > len(ndef_data):
+        payload_end = len(ndef_data)
 
-        if payload_end > len(ndef_data):
-            payload_end = len(ndef_data)
+    url_part = ''.join(chr(b) for b in ndef_data[payload_start:payload_end] if b != 0xFE and b != 0x00)
+    full_url = uri_prefix + url_part
 
-        url_part = ''.join(chr(b) for b in ndef_data[payload_start:payload_end] if b != 0xFE and b != 0x00)
-        full_url = uri_prefix + url_part
+    # Extract type_id and sensor data from URL
+    # URL format: IP:PORT/VAL1,VAL2 -> use default_type
+    # Future: IP:PORT/TYPE_HEX/VAL1,VAL2
+    type_id, raw_values = _extract_type_and_values(url_part)
 
-        # Set tag identity
-        self.id = uid or ''
-        self.fw_version = None
-        self.sn = None
-        self.name = 'NFC NDEF Tag'
-        self.description = full_url
+    type_def = SENSEID_NFC_DEF.types.get(type_id)
+    if type_def is None:
+        return _unknown_tag(uid), None
 
-        # Extract temperature and humidity from URL format: IP:PORT/TEMP,HUM
-        self.data = self._parse_sensor_data(url_part)
-        logger.debug('Parsing done -> ' + str(self))
+    data = _apply_data_def(raw_values, type_def.data_def) if raw_values else None
 
-    def _parse_sensor_data(self, url_part):
-        try:
-            if '/' in url_part:
-                data_part = url_part.split('/')[-1]
-                if ',' in data_part:
-                    temp_str, hum_str = data_part.split(',')
-                    temperature = int(temp_str) / 100.0
-                    humidity = int(hum_str) / 100.0
-                    return [
-                        SenseidData(
-                            magnitude='Temperature',
-                            unit_long='Celsius',
-                            unit_short='°C',
-                            value=temperature
-                        ),
-                        SenseidData(
-                            magnitude='Humidity',
-                            unit_long='Percent',
-                            unit_short='%',
-                            value=humidity
-                        ),
-                    ]
-        except (ValueError, IndexError) as e:
-            logger.debug(f"Error extracting sensor data: {e}")
+    tag = SenseidTag(
+        technology=SenseidTechnologies.NFC,
+        fw_version=None,
+        sn=None,
+        id=uid or '',
+        name=type_def.name,
+        description=type_def.description,
+        data=data
+    )
+    logger.debug(f'NDEF parsed -> {tag}')
+    return tag, type_id
+
+
+def parse_nfc_bulk_sample(raw_values: list, sample_index: int,
+                          type_id: int, uid: str = None) -> Optional[SenseidTag]:
+    """Parse a single bulk sample (one group of N values) into a SenseidTag.
+
+    raw_values: list of raw integer values for this sample (e.g., [temp_raw, hum_raw])
+    type_id: sensor type identified from previous NDEF read
+    """
+    type_def = SENSEID_NFC_DEF.types.get(type_id)
+    if type_def is None:
         return None
 
-    def _set_unknown(self, uid):
-        self.id = uid or ''
-        self.fw_version = None
-        self.sn = None
-        self.name = 'NFC Tag'
-        self.description = 'Unknown NFC tag'
-        self.data = None
+    data = _apply_data_def(raw_values, type_def.data_def)
+
+    return SenseidTag(
+        technology=SenseidTechnologies.NFC,
+        fw_version=None,
+        sn=None,
+        id=uid or '',
+        name=type_def.name,
+        description=f'{type_def.description} (sample {sample_index})',
+        data=data
+    )
+
+
+def _extract_type_and_values(url_part: str) -> Tuple[int, Optional[List[int]]]:
+    """Extract sensor type ID and raw values from URL data part.
+
+    Current format: IP:PORT/VAL1,VAL2 -> returns (default_type, [VAL1, VAL2])
+    Future format:  IP:PORT/TYPE_HEX/VAL1,VAL2 -> returns (type_id, [VAL1, VAL2])
+    """
+    try:
+        # Data is in the URL fragment: path.html#VAL1,VAL2
+        if '#' in url_part:
+            fragment = url_part.split('#', 1)[1]
+            values = [int(v) for v in fragment.split(',')]
+            return SENSEID_NFC_DEF.default_type, values
+
+        if '/' not in url_part:
+            return SENSEID_NFC_DEF.default_type, None
+
+        parts = url_part.split('/')
+        data_part = parts[-1]
+
+        # Check if there's an explicit type in the URL (future format)
+        if len(parts) >= 3:
+            try:
+                type_id = int(parts[-2], 16)
+                if type_id in SENSEID_NFC_DEF.types:
+                    values = [int(v) for v in data_part.split(',')]
+                    return type_id, values
+            except (ValueError, IndexError):
+                pass
+
+        # Legacy format: IP:PORT/VAL1,VAL2
+        if ',' in data_part:
+            values = [int(v) for v in data_part.split(',')]
+            return SENSEID_NFC_DEF.default_type, values
+
+    except (ValueError, IndexError) as e:
+        logger.debug(f"Error extracting sensor data: {e}")
+
+    return SENSEID_NFC_DEF.default_type, None
+
+
+def _apply_data_def(raw_values: list, data_defs: List[SenseidNfcDataDef]) -> List[SenseidData]:
+    """Apply YAML data_def transforms to raw values. Shared by NDEF and BULK."""
+    result = []
+    for i, data_def in enumerate(data_defs):
+        if i >= len(raw_values):
+            break
+        value = data_def.coefficients[0] + data_def.coefficients[1] * raw_values[i]
+        result.append(SenseidData(
+            magnitude=data_def.magnitude,
+            magnitude_short=data_def.magnitude_short,
+            unit_long=data_def.unit_long,
+            unit_short=data_def.unit_short,
+            value=value
+        ))
+    return result
+
+
+def _unknown_tag(uid: str = None) -> SenseidTag:
+    """Create a SenseidTag for an unknown/unparseable NFC tag."""
+    return SenseidTag(
+        technology=SenseidTechnologies.NFC,
+        fw_version=None,
+        sn=None,
+        id=uid or '',
+        name='NFC Tag',
+        description='Unknown NFC tag',
+        data=None
+    )

@@ -1,11 +1,24 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Callable
+from typing import List, Callable, Optional
 from abc import ABC, abstractmethod
 
 from dataclasses_json import dataclass_json
 
 from ..parsers import SenseidTag
+
+
+class SenseidReaderMode(Enum):
+    DEFAULT = 'DEFAULT'
+    NDEF = 'NDEF'
+    BULK = 'BULK'
+
+
+class SenseidReaderError(Exception):
+    def __init__(self, error_type: str, message: str = ''):
+        self.error_type = error_type
+        self.message = message
+        super().__init__(f'{error_type}: {message}')
 
 
 class SupportedSenseidReader(Enum):
@@ -67,12 +80,24 @@ class SenseidReader(ABC):
         pass
 
     @abstractmethod
-    def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None]):
+    def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None],
+                              error_callback: Optional[Callable[['SenseidReaderError'], None]] = None):
         pass
 
     @abstractmethod
     def stop_inventory_async(self):
         pass
+
+    def get_supported_modes(self) -> List[SenseidReaderMode]:
+        return [SenseidReaderMode.DEFAULT]
+
+    def get_mode(self) -> SenseidReaderMode:
+        return SenseidReaderMode.DEFAULT
+
+    def set_mode(self, mode: SenseidReaderMode):
+        supported = self.get_supported_modes()
+        if mode not in supported:
+            raise ValueError(f'Mode {mode} not supported. Supported: {supported}')
 
 
 def get_supported_readers():

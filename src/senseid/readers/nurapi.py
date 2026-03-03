@@ -123,7 +123,8 @@ class SenseidNurapi(SenseidReader):
                                                NUR_MODULESETUP_FLAGS.NUR_SETUP_SELECTEDANT],
                                    module_setup=module_setup)
 
-    def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None]):
+    def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None],
+                              error_callback=None):
         self.notification_callback = notification_callback
         return self.driver.StartInventoryStream(rounds=10, q=0, session=0)
 

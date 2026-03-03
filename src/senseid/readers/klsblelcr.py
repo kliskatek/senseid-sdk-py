@@ -1,4 +1,5 @@
 import logging
+import struct
 from typing import List, Callable
 
 from driver_sble_py_klsblelcf import KlSbleLcr
@@ -45,7 +46,11 @@ class SenseidKlSbleLcr(SenseidReader):
         return self.details
 
     def get_tx_power(self) -> float:
-        return self.driver.get_tx_power()
+        response = self.driver.get_tx_power()
+        if isinstance(response, (bytes, bytearray)) and len(response) >= 2:
+            raw = struct.unpack('>H', response[:2])[0]
+            return raw / 10.0
+        return float(response)
 
     def set_tx_power(self, dbm: float):
         return self.driver.set_tx_power(dbm)
@@ -57,7 +62,8 @@ class SenseidKlSbleLcr(SenseidReader):
     def set_antenna_config(self, antenna_config_array: List[bool]):
         logger.debug('Antenna configuration is fixed')
 
-    def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None]):
+    def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None],
+                              error_callback=None):
         self.notification_callback = notification_callback
         return self.driver.start()
 

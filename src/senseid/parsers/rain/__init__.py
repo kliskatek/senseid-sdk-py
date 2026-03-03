@@ -91,6 +91,7 @@ class SenseidRainTag(SenseidTag):
                         value = 1 / (1 / t0 + 1 / beta * log(r_thermistor / r0)) - 273.15
 
                 data = SenseidData(magnitude=data_config.magnitude,
+                                   magnitude_short=data_config.magnitude_short,
                                    unit_long=data_config.unit_long,
                                    unit_short=data_config.unit_short,
                                    value=value)

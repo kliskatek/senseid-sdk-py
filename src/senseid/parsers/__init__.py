@@ -15,6 +15,7 @@ class SenseidTechnologies(Enum):
 @dataclass
 class SenseidData:
     magnitude: str
+    magnitude_short: str
     unit_long: str
     unit_short: str
     value: float

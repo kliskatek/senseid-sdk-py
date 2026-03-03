@@ -13,21 +13,17 @@ class SenseidValueType(Enum):
     INT8 = 'int8'
     UINT16 = 'uint16'
     INT16 = 'int16'
-    UINT16BE = 'uint16be'
-    INT16BE = 'int16be'
     FLOAT = 'float'
-    PADDING = 'padding'
 
 
 class SenseidTransformType(Enum):
     NONE = 'none'
     LINEAR = 'linear'
-    THERMISTOR_BETA = 'thermistor-beta'
 
 
 @dataclass_json
 @dataclass
-class SenseidBleDataDef:
+class SenseidNfcDataDef:
     magnitude: str
     magnitude_short: str
     unit_long: str
@@ -39,20 +35,19 @@ class SenseidBleDataDef:
 
 @dataclass_json
 @dataclass
-class SenseidBleTypeDef:
+class SenseidNfcTypeDef:
     name: str
     description: str
-    data_def: List[SenseidBleDataDef]
-    fw_versions: List[int]
+    data_def: List[SenseidNfcDataDef]
 
 
 @dataclass_json
 @dataclass
-class SenseidBleDef:
+class SenseidNfcDef:
     version: int
     date: datetime.date
-    local_name: str
-    types: Dict[int, SenseidBleTypeDef]
+    default_type: int
+    types: Dict[int, SenseidNfcTypeDef]
 
 
 # Detect Source or Package mode
@@ -61,6 +56,6 @@ if top_package == 'src':
     senseid_package = files('src.senseid')
 else:
     senseid_package = files('senseid')
-_senseid_yaml = senseid_package.joinpath('definitions').joinpath('senseid_ble.yaml').read_text()
+_senseid_yaml = senseid_package.joinpath('definitions').joinpath('senseid_nfc.yaml').read_text()
 _senseid_dict = yaml.safe_load(_senseid_yaml)
-SENSEID_BLE_DEF: SenseidBleDef = SenseidBleDef.from_dict(_senseid_dict)
+SENSEID_NFC_DEF: SenseidNfcDef = SenseidNfcDef.from_dict(_senseid_dict)

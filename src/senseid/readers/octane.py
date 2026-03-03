@@ -79,7 +79,8 @@ class SenseidOctane(SenseidReader):
             logger.warning('At least one antenna needs to be active. Enabling antenna 1.')
         self.driver.set_antenna_config(antenna_config_array)
 
-    def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None]):
+    def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None],
+                              error_callback=None):
         self.notification_callback = notification_callback
         return self.driver.start()
 

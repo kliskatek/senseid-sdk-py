@@ -130,7 +130,9 @@ def parse_nfc_ndef(ndef_data: bytearray, uid: str = None) -> Tuple[Optional[Sens
         id=uid or '',
         name=type_def.name,
         description=type_def.description,
-        data=data
+        data=data,
+        datasheet_url=type_def.datasheet_url,
+        store_url=type_def.store_url
     )
     logger.debug(f'NDEF parsed -> {tag}')
     return tag, type_id
@@ -156,7 +158,9 @@ def parse_nfc_bulk_sample(raw_values: list, sample_index: int,
         id=uid or '',
         name=type_def.name,
         description=f'{type_def.description} (sample {sample_index})',
-        data=data
+        data=data,
+        datasheet_url=type_def.datasheet_url,
+        store_url=type_def.store_url
     )
 
 

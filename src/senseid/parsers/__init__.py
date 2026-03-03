@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
 from dataclasses_json import dataclass_json
 
@@ -31,3 +32,6 @@ class SenseidTag:
     name: str
     description: str
     data: List[SenseidData] | None
+    timestamp: datetime = field(default_factory=datetime.now)
+    datasheet_url: Optional[str] = field(default=None)
+    store_url: Optional[str] = field(default=None)

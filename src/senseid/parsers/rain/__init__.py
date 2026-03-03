@@ -1,6 +1,7 @@
 import logging
 import struct
 from dataclasses import dataclass
+from datetime import datetime
 from math import log
 
 from dataclasses_json import dataclass_json
@@ -17,6 +18,7 @@ class SenseidRainTag(SenseidTag):
 
     def __init__(self, epc: str | bytearray):
         self.technology = SenseidTechnologies.RAIN
+        self.timestamp = datetime.now()
         self.parse_epc(epc)
 
     def _get_bytearray_epc(self, epc: str | bytearray):
@@ -52,6 +54,8 @@ class SenseidRainTag(SenseidTag):
             self.sn = None
             self.name = 'Unknown SenseID type'
             self.description = 'Unknown SenseID type'
+            self.datasheet_url = None
+            self.store_url = None
             self.data = None
             return
 
@@ -62,6 +66,8 @@ class SenseidRainTag(SenseidTag):
         self.sn = sn
         self.name = senseid_type_config.name
         self.description = senseid_type_config.description
+        self.datasheet_url = senseid_type_config.datasheet_url
+        self.store_url = senseid_type_config.store_url
         self.data = []
         try:
             for data_config in senseid_type_config.data_def:
@@ -109,5 +115,7 @@ class SenseidRainTag(SenseidTag):
             self.sn = None
             self.name = 'Rain ID'
             self.description = 'Standard Rain ID tag'
+            self.datasheet_url = None
+            self.store_url = None
             self.data = None
         logger.debug('Parsing done -> ' + str(self))

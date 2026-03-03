@@ -1,8 +1,8 @@
 import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from importlib.resources import files
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import yaml
 from dataclasses_json import dataclass_json
@@ -44,6 +44,8 @@ class SenseidBleTypeDef:
     description: str
     data_def: List[SenseidBleDataDef]
     fw_versions: List[int]
+    datasheet_url: Optional[str] = field(default=None)
+    store_url: Optional[str] = field(default=None)
 
 
 @dataclass_json

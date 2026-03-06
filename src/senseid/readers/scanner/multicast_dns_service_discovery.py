@@ -66,6 +66,8 @@ class MulticastDnsServiceDiscoveryScanner:
                                 conn_infos = [
                                     SenseidReaderConnectionInfo(driver=SupportedSenseidReader.IMPINJ_IOT,
                                                                 connection_string=ip_str),
+                                    SenseidReaderConnectionInfo(driver=SupportedSenseidReader.SPEEDWAY,
+                                                                connection_string=ip_str),
                                 ]
                                 self.ips[ip_str] = conn_infos
                                 for conn_info in conn_infos:

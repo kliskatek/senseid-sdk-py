@@ -139,11 +139,13 @@ def parse_nfc_ndef(ndef_data: bytearray, uid: str = None) -> Tuple[Optional[Sens
 
 
 def parse_nfc_bulk_sample(raw_values: list, sample_index: int,
-                          type_id: int, uid: str = None) -> Optional[SenseidTag]:
+                          type_id: int, uid: str = None,
+                          timestamp=None) -> Optional[SenseidTag]:
     """Parse a single bulk sample (one group of N values) into a SenseidTag.
 
     raw_values: list of raw integer values for this sample (e.g., [temp_raw, hum_raw])
     type_id: sensor type identified from previous NDEF read
+    timestamp: pre-computed timestamp for this sample (optional)
     """
     type_def = SENSEID_NFC_DEF.types.get(type_id)
     if type_def is None:
@@ -151,7 +153,7 @@ def parse_nfc_bulk_sample(raw_values: list, sample_index: int,
 
     data = _apply_data_def(raw_values, type_def.data_def)
 
-    return SenseidTag(
+    tag = SenseidTag(
         technology=SenseidTechnologies.NFC,
         fw_version=None,
         sn=None,
@@ -162,6 +164,9 @@ def parse_nfc_bulk_sample(raw_values: list, sample_index: int,
         datasheet_url=type_def.datasheet_url,
         store_url=type_def.store_url
     )
+    if timestamp is not None:
+        tag.timestamp = timestamp
+    return tag
 
 
 def _extract_type_and_values(url_part: str) -> Tuple[int, Optional[List[int]]]:

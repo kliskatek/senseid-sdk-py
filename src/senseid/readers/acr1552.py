@@ -1,5 +1,6 @@
 import logging
 import threading
+from datetime import datetime, timedelta
 from typing import List, Callable, Optional
 
 from driver_snfc_py_acr1552.acr1552 import Acr1552
@@ -24,6 +25,7 @@ class SenseidAcr1552(SenseidReader):
     NTAG5_DATA_NBLOCKS = 50
 
     MAX_RECONNECT_ATTEMPTS = 3
+    MAX_CONSECUTIVE_FAILURES = 5
 
     def __init__(self):
         self.driver = Acr1552()
@@ -40,19 +42,19 @@ class SenseidAcr1552(SenseidReader):
         # Bulk state
         self._last_bulk_index: int | None = None
         self._last_uid = None
+        # Resume event for user-driven error recovery
+        self._resume_event = threading.Event()
 
     def connect(self, connection_string: str):
-        try:
-            self._connection_string = connection_string
-            result = self.driver.connect(connection_string=connection_string)
-            if result:
+        self._connection_string = connection_string
+        result = self.driver.connect(connection_string=connection_string)
+        if result:
+            try:
                 self.driver.set_power(True)
-                self.driver.change_fw_mode(False)  # NDEF mode
-                self._mode = SenseidReaderMode.NDEF
-            return result
-        except Exception as e:
-            logger.error(f'ACR1552 connect error: {e}')
-            return False
+            except Exception:
+                pass  # May fail without tag on Windows — OK
+            self._mode = SenseidReaderMode.NDEF
+        return result
 
     def disconnect(self):
         self._stop_polling()
@@ -103,14 +105,10 @@ class SenseidAcr1552(SenseidReader):
         if was_polling:
             self._stop_polling()
 
-        if mode == SenseidReaderMode.NDEF:
-            self.driver.change_fw_mode(False)
-        elif mode == SenseidReaderMode.BULK:
-            self.driver.change_fw_mode(True)
+        self._mode = mode
+        if mode == SenseidReaderMode.BULK:
             self._last_bulk_index = None
             self._last_uid = None
-
-        self._mode = mode
 
         if was_polling:
             self._start_polling()
@@ -147,29 +145,46 @@ class SenseidAcr1552(SenseidReader):
         self._is_polling = False
 
     def _ndef_loop(self):
+        had_tag = False
+        consecutive_failures = 0
+        switched_to_ndef = False
         while not self._stop_event.is_set():
             try:
                 uid = self.driver.get_uid()
                 if uid is not None:
+                    had_tag = True
+                    consecutive_failures = 0
+                    # Ensure tag firmware is in NDEF mode (needed after BULK→NDEF switch)
+                    if not switched_to_ndef:
+                        self.driver.change_fw_mode(False)
+                        switched_to_ndef = True
+                        self._stop_event.wait(0.2)
+                        continue
                     tag = self._read_and_parse_ndef(uid)
                     if tag is not None and self._notification_callback:
                         self._notification_callback(tag)
                 else:
-                    logger.warning('NFC NDEF: no tag detected')
-                    self._handle_error('TAG_LOST')
-                    return
+                    if had_tag:
+                        consecutive_failures += 1
+                        if consecutive_failures >= self.MAX_CONSECUTIVE_FAILURES:
+                            logger.warning('NFC NDEF: comms lost, triggering recovery')
+                            self._handle_error()
+                            return
+                    # No tag yet or just removed — keep polling
             except Exception as e:
                 logger.error(f'NFC NDEF poll error: {e}')
-                self._handle_error('TAG_LOST')
+                self._handle_error()
                 return
             self._stop_event.wait(0.5)
 
     def _bulk_loop(self):
+        had_tag = False
         consecutive_failures = 0
         while not self._stop_event.is_set():
             try:
                 uid = self.driver.get_uid()
                 if uid is not None:
+                    had_tag = True
                     consecutive_failures = 0
 
                     # New tag detected - switch it to bulk mode
@@ -195,14 +210,16 @@ class SenseidAcr1552(SenseidReader):
                                 self._last_bulk_index = current_index
                                 self._emit_bulk_samples(raw_values, uid)
                 else:
-                    consecutive_failures += 1
-                    if consecutive_failures >= 10:
-                        logger.warning('NFC BULK: tag lost (consecutive failures)')
-                        self._handle_error('TAG_LOST')
-                        return
+                    if had_tag:
+                        consecutive_failures += 1
+                        if consecutive_failures >= self.MAX_CONSECUTIVE_FAILURES:
+                            logger.warning('NFC BULK: comms lost, triggering recovery')
+                            self._handle_error()
+                            return
+                    # No tag yet or just removed — keep polling
             except Exception as e:
                 logger.error(f'NFC BULK poll error: {e}')
-                self._handle_error('TAG_LOST')
+                self._handle_error()
                 return
             self._stop_event.wait(0.02)
 
@@ -240,6 +257,8 @@ class SenseidAcr1552(SenseidReader):
             return idx_list[0]
         return None
 
+    BULK_SAMPLE_INTERVAL_MS = 10  # Tag firmware samples every 10ms
+
     def _emit_bulk_samples(self, raw_values: list, uid):
         """Group raw uint16 values by data_def size and emit one SenseidTag per sample."""
         type_id = self._detected_type_id or SENSEID_NFC_DEF.default_type
@@ -249,47 +268,64 @@ class SenseidAcr1552(SenseidReader):
 
         group_size = len(type_def.data_def)
         uid_str = bytearray(uid).hex().upper() if uid else None
+        total_samples = len(raw_values) // group_size
 
-        for sample_idx in range(0, len(raw_values) // group_size):
+        # Last sample is the most recent (≈ now), each previous one is 10ms earlier
+        now = datetime.now()
+        for sample_idx in range(total_samples):
             start = sample_idx * group_size
             group = raw_values[start:start + group_size]
-            tag = parse_nfc_bulk_sample(group, sample_idx, type_id, uid=uid_str)
+            sample_time = now - timedelta(milliseconds=self.BULK_SAMPLE_INTERVAL_MS * (total_samples - 1 - sample_idx))
+            tag = parse_nfc_bulk_sample(group, sample_idx, type_id, uid=uid_str, timestamp=sample_time)
             if tag is not None and self._notification_callback:
                 self._notification_callback(tag)
 
-    def _handle_error(self, error_type: str):
-        """Handle tag loss: try auto-reconnect, emit error if all retries fail."""
+    def _handle_error(self):
+        """Handle comms error: notify Osiris, wait for user to resume, then reconnect.
+        Loops until a real PC/SC connection is established (tag on field)."""
         self._stop_event.set()
         self._poll_thread = None
         self._is_polling = False
 
+        # Error has been detected, disconnect from the reader
         try:
             self.driver.disconnect()
         except Exception:
             pass
 
-        # Auto-reconnect attempts
-        for attempt in range(1, self.MAX_RECONNECT_ATTEMPTS + 1):
-            try:
-                logger.info(f'NFC reconnect attempt {attempt}/{self.MAX_RECONNECT_ATTEMPTS}')
-                result = self.driver.connect(connection_string=self._connection_string)
-                if result:
-                    self.driver.set_power(True)
-                    # Restore mode
-                    if self._mode == SenseidReaderMode.BULK:
-                        self.driver.change_fw_mode(True)
-                        self._last_bulk_index = None
-                        self._last_uid = None
-                    else:
-                        self.driver.change_fw_mode(False)
-                    # Restart polling
-                    self._start_polling()
-                    logger.info(f'NFC reconnected on attempt {attempt}')
-                    return
-            except Exception as e:
-                logger.warning(f'NFC reconnect attempt {attempt} failed: {e}')
+        while True:
+            # Notify Osiris about the error (opens/keeps popup open)
+            if self._error_callback:
+                self._error_callback(SenseidReaderError('NFC_TAG_COMMS_ERROR', 'NFC tag communication lost'))
 
-        # All retries exhausted
-        logger.error(f'NFC reconnect failed after {self.MAX_RECONNECT_ATTEMPTS} attempts')
-        if self._error_callback:
-            self._error_callback(SenseidReaderError(error_type, 'Tag lost, reconnect failed'))
+            # Wait for user to click Resume
+            logger.info('NFC: waiting for user to resume...')
+            self._resume_event.wait()
+            self._resume_event.clear()
+
+            # User has clicked Resume — try to connect with tag
+            for attempt in range(1, self.MAX_RECONNECT_ATTEMPTS + 1):
+                logger.info(f'NFC reconnect attempt {attempt}/{self.MAX_RECONNECT_ATTEMPTS}')
+                try:
+                    self.driver.connect(connection_string=self._connection_string)
+                    if self.driver.is_pc_connected():
+                        self.driver.set_power(True)
+                        if self._mode == SenseidReaderMode.BULK:
+                            self._last_bulk_index = None
+                            self._last_uid = None
+                        self._stop_event.clear()
+                        self._start_polling()
+                        logger.info(f'NFC reconnected on attempt {attempt}')
+                        if self._error_callback:
+                            self._error_callback(SenseidReaderError('NFC_RECOVERED', 'NFC communication restored'))
+                        return
+                except Exception as e:
+                    logger.warning(f'NFC reconnect attempt {attempt} error: {e}')
+                logger.warning(f'NFC reconnect attempt {attempt} failed — tag not on field?')
+
+            # All attempts failed (tag still not placed) — loop back to show error again
+            logger.warning('NFC reconnect failed, tag not detected. Will ask user to retry.')
+
+    def resume_from_error(self):
+        """Called by Osiris when user clicks Resume after an NFC error."""
+        self._resume_event.set()

@@ -99,6 +99,9 @@ class SenseidReader(ABC):
         if mode not in supported:
             raise ValueError(f'Mode {mode} not supported. Supported: {supported}')
 
+    def resume_from_error(self):
+        pass
+
 
 def get_supported_readers():
     return [reader.value for reader in SupportedSenseidReader]

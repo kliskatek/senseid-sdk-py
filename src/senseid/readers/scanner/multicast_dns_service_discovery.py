@@ -53,6 +53,31 @@ class MulticastDnsServiceDiscoveryScanner:
                                     for conn_info in conn_infos:
                                         self.removal_callback(conn_info)
 
+            if name.startswith('impinj-') and 'SpeedwayR' not in name:
+                info = zeroconf.get_service_info(service_type, name)
+                if info is not None:
+                    ipv4_addresses = info.addresses_by_version(IPVersion.V4Only)
+                    if len(ipv4_addresses) > 0:
+                        ipv4 = ipv4_addresses[0]
+                        ip_str = str(ipv4[0]) + '.' + str(ipv4[1]) + '.' + str(ipv4[2]) + '.' + str(ipv4[3])
+                        if state_change is ServiceStateChange.Added:
+                            if ip_str not in self.ips:
+                                logger.info('New Impinj R700 reader found: ' + ip_str)
+                                conn_infos = [
+                                    SenseidReaderConnectionInfo(driver=SupportedSenseidReader.IMPINJ_IOT,
+                                                                connection_string=ip_str),
+                                ]
+                                self.ips[ip_str] = conn_infos
+                                for conn_info in conn_infos:
+                                    self.notification_callback(conn_info)
+                        elif state_change is ServiceStateChange.Removed:
+                            if ip_str in self.ips:
+                                logger.info('Impinj R700 reader disconnected: ' + ip_str)
+                                conn_infos = self.ips.pop(ip_str)
+                                if self.removal_callback is not None:
+                                    for conn_info in conn_infos:
+                                        self.removal_callback(conn_info)
+
             if 'ThingMagic Mercury' in name:
                 info = zeroconf.get_service_info(service_type, name)
                 if info is not None:

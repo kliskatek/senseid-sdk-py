@@ -29,6 +29,7 @@ class SupportedSenseidReader(Enum):
     SPEEDWAY = 'SPEEDWAY'
     KLSBLELCR = 'KLSBLELCR'
     ACR1552 = 'ACR1552'
+    IMPINJ_IOT = 'IMPINJ_IOT'
 
 
 @dataclass_json
@@ -129,3 +130,6 @@ def create_SenseidReader(reader_info: SenseidReaderConnectionInfo = None, notifi
     if reader_info.driver == SupportedSenseidReader.ACR1552:
         from .acr1552 import SenseidAcr1552
         return SenseidAcr1552()
+    if reader_info.driver == SupportedSenseidReader.IMPINJ_IOT:
+        from .impinj_iot import SenseidImpinjIot
+        return SenseidImpinjIot()

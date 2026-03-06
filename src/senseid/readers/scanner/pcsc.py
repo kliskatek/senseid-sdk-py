@@ -19,6 +19,7 @@ class PcscScanner:
         self._scan_thread = None
         self.found_readers = {}  # reader_name -> SenseidReaderConnectionInfo
         self._is_on = False
+        self._pcsc_error_logged = False
 
     def start(self, reset: bool = False):
         if reset:
@@ -57,5 +58,7 @@ class PcscScanner:
                     if self.removal_callback is not None:
                         self.removal_callback(conn_info)
             except Exception as e:
-                logger.debug(f"PC/SC scan error: {e}")
+                if not self._pcsc_error_logged:
+                    logger.debug(f"PC/SC scan error: {e}")
+                    self._pcsc_error_logged = True
             time.sleep(1)

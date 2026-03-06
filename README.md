@@ -3,14 +3,26 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/senseid.svg)](https://pypi.org/project/senseid)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/senseid.svg)](https://pypi.org/project/senseid)
 
------
+Python SDK for SenseID smart sensor tags. Parse sensor data from RAIN RFID, BLE, and NFC tags, and control supported reader devices through a unified interface.
 
-## Table of Contents
+## Features
 
-- [Installation](#installation)
-- [Parsers](#parsers)
-- [Readers](#readers)
-- [License](#license)
+- **Multi-technology parsing**: Decode SenseID sensor data from RAIN (UHF RFID), BLE beacons, and NFC tags
+- **Unified reader interface**: Control different RFID/NFC readers through a single API
+- **Auto-discovery**: Scan for supported readers via serial port, mDNS, and PC/SC
+- **YAML-driven definitions**: Tag types and sensor calibration defined in YAML files
+- **Sensor data extraction**: Temperature, humidity, and other magnitudes with automatic calibration
+
+## Supported Readers
+
+| Reader | Driver | Interface |
+|--------|--------|-----------|
+| Impinj R700 | `IMPINJ_IOT` | REST API (IoT Device Interface) |
+| Impinj Speedway R420/R220/R120 | `OCTANE` / `SPEEDWAY` | Octane SDK / LLRP |
+| NordicID Sampoo / Stix | `NURAPI` / `NURAPY` | NUR API |
+| Phychips RED4S | `REDRCP` | RedRCP (serial) |
+| ACS ACR1552 | `ACR1552` | PC/SC (NFC) |
+| Kliskatek BLE Reader | `KLSBLELCR` | BLE |
 
 ## Installation
 
@@ -18,131 +30,109 @@
 pip install senseid
 ```
 
-## Parsers
+## Quick Start
 
-The senseid.parsers package provides the means to automatically parse the information of any SID tag either from the EPC for RFID tags or from the BLE beacon data for BLE tags.
+### Parse a RAIN RFID tag
 
-### Usage with RFID SID tags
-Create SenseidRainTag object from EPC HEX string or from EPC bytearray:
 ```python
-# Parse from EPC string
+from senseid.parsers.rain import SenseidRainTag
+
 tag = SenseidRainTag('000000F1D301010000012301')
-
-# Parse from EPC bytearray
-tag = SenseidRainTag(bytearray([0x00, 0x00, 0x00, 0xF1, 0xD3, 0x01, 0x01, 0x00, 0x00, 0x01, 0x23, 0x01]))
-```
-The returning object will contain all the parsed information of the RFID SID tag. This object can be used as is or converted to a dict or a JSON if needed.
-```python
-# Print content of parsed tag object
-logging.info(tag)
-
-# Convert to dict
-tag_dict = tag.to_dict()
-logging.info(tag_dict)
-
-# Convert to json
-tag_json = tag.to_json(indent=2)
-logging.info(tag_json)
+print(tag.name)          # Tag model name
+print(tag.sn)            # Serial number
+for d in tag.data:
+    print(f"{d.magnitude}: {d.value} {d.unit_short}")
 ```
 
-## Readers
-The senseid.readers package provides a generic reader interface to scan SID tags regardless the used reader device. It handles the configuration of the different devices to properly work with the SID tags. The package also provides a scanner for automatic reader discovery of supported devices.
-
-### Suported devices
-The following readers are supported. Some of them can be controlled with more than one driver.
-* Impinj Speedway ([octane-sdk-wrapper](https://github.com/kliskatek/driver-rain-py-octane)/[sllurp](https://github.com/sllurp/sllurp))
-  + R420
-  + R220
-  + R120
-* NordicID NUR ([nurapi](https://github.com/kliskatek/driver-rain-py-nurapi)/[nurapy](https://github.com/kliskatek/driver-rain-py-nurapy))
-  + Sampoo
-  + Stix
-* Phychips RED ([redrcp](https://github.com/kliskatek/driver-rain-py-redrcp))
-  * RED4S evaluation board
-
-### Usage of scanner
-The scanner can work asynchronously with a notification callback or can be used in blocking mode to get the desired type of reader.
-
-First create a scanner instance and start it. Define notification callback if needed.
-```python
-def scanner_notification_callback(new_reader: SenseidReaderConnectionInfo):
-    logging.info(new_reader)
-
-# Scan readers with notifications
-scanner = SenseidReaderScanner(notification_callback=scanner_notification_callback, autostart=True)
-```
-
-Get list of already discovered readers whenever.
-```python
-# Get all readers found by the scanner
-reader_list = scanner.get_readers()
-logging.info(reader_list)
-```
-
-For blocking usage, wait until the a reader of the desired type is found.
-```python
-# Or wait until desired reader is found
-nur_reader = scanner.wait_for_reader_of_type(reader_type=SupportedSenseidReader.NURAPI, timeout_s=1)
-logging.info(nur_reader)
-scanner.stop()
-```
-
-Finally, stop the scanner.
-```python
-scanner.stop()
-```
-### Usage of readers
-First get the connection info of the reader.
-
-This can be done either using the scanner:
+### Scan for readers and run inventory
 
 ```python
+from senseid.parsers import SenseidTag
+from senseid.readers import SupportedSenseidReader, create_SenseidReader
+from senseid.readers.scanner import SenseidReaderScanner
+
 scanner = SenseidReaderScanner(autostart=True)
-connection_info = scanner.wait_for_reader_of_type(SupportedSenseidReader.OCTANE, timeout_s=5)
+connection_info = scanner.wait_for_reader_of_type(SupportedSenseidReader.IMPINJ_IOT, timeout_s=10)
+scanner.stop()
 
 if connection_info is None:
     print('No reader found')
     exit()
-```
-or manually:
 
-```python
-connection_info = SenseidReaderConnectionInfo(driver=SupportedSenseidReader.OCTANE, connection_string='192.168.0.10')
-```
-Then connect to the reader:
-```python
-er = create_SenseidReader(connection_info)
-sid_reader.connect(connection_info.connection_string)
-```
-The antenna configuration and TX power can be configured as desired:
-```python
-logging.info('Setting antenna configurations')
-sid_reader.set_antenna_config(antenna_config_array=[True, False])
-sid_reader.get_antenna_config()
+reader = create_SenseidReader(connection_info)
+reader.connect(connection_info.connection_string)
 
-logging.info('Setting max TX power')
-sid_reader.set_tx_power(sid_reader.get_details().max_tx_power)
-sid_reader.get_tx_power()
+def on_tag(tag: SenseidTag):
+    print(f"{tag.name} | SN: {tag.sn} | {tag.data}")
+
+reader.start_inventory_async(notification_callback=on_tag)
+input("Press Enter to stop...")
+reader.stop_inventory_async()
+reader.disconnect()
 ```
 
-Define a notification callback for read tags and start inventory:
-```python
-def notification_callback(epc: SenseidTag):
-    logging.info(epc)
+## API Reference
 
+### Parsers
 
-logging.info('Starting inventory')
-sid_reader.start_inventory_async(notification_callback=notification_callback)
-```
+#### `SenseidRainTag(epc: str | bytearray)`
 
-Finally stop the inventory and disconnect the reader
-```python
-logging.info('Stopping inventory')
-sid_reader.stop_inventory_async()
+Parses a RAIN RFID EPC into a `SenseidTag` with decoded sensor data. Accepts hex string or bytearray.
 
-logging.info('Disconnecting from reader')
-sid_reader.disconnect()
-```
+#### `SenseidBleTag(beacon: str | bytearray)`
+
+Parses a BLE advertisement payload into a `SenseidTag`.
+
+#### `parse_nfc_ndef(ndef_data: bytearray, uid: str) -> (SenseidTag, type_id)`
+
+Parses NFC NDEF data into a `SenseidTag`.
+
+### `SenseidTag`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `technology` | `SenseidTechnologies` | `RAIN`, `BLE`, or `NFC` |
+| `id` | `str` | Tag identifier (EPC hex, BLE MAC, NFC UID) |
+| `name` | `str` | Tag model name |
+| `description` | `str` | Tag description |
+| `sn` | `int` | Serial number |
+| `fw_version` | `int` | Firmware version |
+| `data` | `list[SenseidData]` | Parsed sensor measurements |
+| `timestamp` | `datetime` | Read timestamp |
+
+### `SenseidData`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `magnitude` | `str` | Measurement name (e.g. "Temperature") |
+| `magnitude_short` | `str` | Short name (e.g. "Temp") |
+| `unit_long` | `str` | Unit name (e.g. "Celsius") |
+| `unit_short` | `str` | Unit symbol (e.g. "C") |
+| `value` | `float` | Calibrated value |
+
+### Readers
+
+#### `SenseidReaderScanner`
+
+| Method | Description |
+|--------|-------------|
+| `start()` | Start scanning for readers (serial, mDNS, PC/SC) |
+| `stop()` | Stop scanning |
+| `get_readers()` | Get list of discovered readers |
+| `wait_for_reader_of_type(type, timeout_s)` | Block until a reader of the given type is found |
+
+#### `SenseidReader`
+
+| Method | Description |
+|--------|-------------|
+| `connect(connection_string)` | Connect to reader |
+| `disconnect()` | Disconnect |
+| `get_details()` | Get model, region, firmware, antenna count, power limits |
+| `get_tx_power()` / `set_tx_power(dbm)` | Get/set TX power in dBm |
+| `get_antenna_config()` / `set_antenna_config(list[bool])` | Get/set active antennas |
+| `start_inventory_async(callback)` | Start inventory with tag notification callback |
+| `stop_inventory_async()` | Stop inventory |
+
 ## License
 
 `senseid` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.

@@ -5,11 +5,11 @@ build-backend = "hatchling.build"
 [project]
 name = "senseid"
 dynamic = ["version"]
-description = ''
+description = 'Python SDK for SenseID smart sensor tags — parse RAIN RFID, BLE and NFC sensor data, and control supported readers'
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
-keywords = []
+keywords = ["senseid", "rfid", "rain", "uhf", "ble", "nfc", "sensor", "iot", "impinj", "r700"]
 authors = [
   { name = "Ibon Zalbide", email = "ibon.zalbide@kliskatek.com" },
   { name = "Aritz Alonso", email = "aritz.alonso@kliskatek.com" },

@@ -7,6 +7,7 @@ from .. import SenseidReaderConnectionInfo, SupportedSenseidReader
 from .multicast_dns_service_discovery import MulticastDnsServiceDiscoveryScanner
 from .pcsc import PcscScanner
 from .serialport import SerialPortScanner
+from .ws_discovery import WsDiscoveryScanner
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,8 @@ class SenseidReaderScanner:
             removal_callback=self._remove_reader)
         self.pcsc_scanner = PcscScanner(notification_callback=self._add_reader,
                                         removal_callback=self._remove_reader)
+        self.ws_discovery_scanner = WsDiscoveryScanner(notification_callback=self._add_reader,
+                                                        removal_callback=self._remove_reader)
         if autostart:
             self.start()
 
@@ -37,11 +40,13 @@ class SenseidReaderScanner:
         self.serial_port_scanner.start(reset=reset)
         self.multicast_dns_service_discovery_scanner.start()
         self.pcsc_scanner.start(reset=reset)
+        self.ws_discovery_scanner.start(reset=reset)
 
     def stop(self):
         self.serial_port_scanner.stop()
         self.multicast_dns_service_discovery_scanner.stop()
         self.pcsc_scanner.stop()
+        self.ws_discovery_scanner.stop()
 
     def _add_reader(self, connection_info: SenseidReaderConnectionInfo):
         self.readers.append(connection_info)

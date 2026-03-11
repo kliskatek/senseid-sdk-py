@@ -30,6 +30,7 @@ class SupportedSenseidReader(Enum):
     KLSBLELCR = 'KLSBLELCR'
     ACR1552 = 'ACR1552'
     IMPINJ_IOT = 'IMPINJ_IOT'
+    ZEBRA_LLRP = 'ZEBRA_LLRP'
 
 
 @dataclass_json
@@ -133,3 +134,6 @@ def create_SenseidReader(reader_info: SenseidReaderConnectionInfo = None, notifi
     if reader_info.driver == SupportedSenseidReader.IMPINJ_IOT:
         from .impinj_iot import SenseidImpinjIot
         return SenseidImpinjIot()
+    if reader_info.driver == SupportedSenseidReader.ZEBRA_LLRP:
+        from .zebra_llrp import SenseidZebraLlrp
+        return SenseidZebraLlrp()

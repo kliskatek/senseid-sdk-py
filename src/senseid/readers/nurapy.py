@@ -2,7 +2,7 @@ import logging
 from typing import List, Callable
 
 from nurapy import NurAPY, NurTagDataMeta, InventoryStreamNotification, ModuleSetupFlags, ModuleSetup, NurDeviceCaps
-from nurapy.protocol.command.module_setup import ModuleSetupLinkFreq, ModuleSetupRxDec
+from nurapy.protocol.command.module_setup import ModuleSetupLinkFreq, ModuleSetupRxDec, ModuleSetupInvTarget
 
 from . import SenseidReader, SenseidReaderDetails
 from ..parsers import SenseidTag
@@ -28,8 +28,14 @@ class SenseidNurapy(SenseidReader):
         module_setup = ModuleSetup()
         module_setup.link_freq = ModuleSetupLinkFreq.BLF_256
         module_setup.rx_decoding = ModuleSetupRxDec.MILLER_4
+        module_setup.inventory_q = 2
+        module_setup.inventory_session = 0
+        module_setup.inventory_target = ModuleSetupInvTarget.AB
         self.driver.set_module_setup(setup_flags=[ModuleSetupFlags.LINKFREQ,
-                                                  ModuleSetupFlags.RXDEC],
+                                                  ModuleSetupFlags.RXDEC,
+                                                  ModuleSetupFlags.INVQ,
+                                                  ModuleSetupFlags.INVSESSION,
+                                                  ModuleSetupFlags.INVTARGET],
                                      module_setup=module_setup)
 
         # Set MAX TX Power

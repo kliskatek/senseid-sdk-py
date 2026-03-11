@@ -1,10 +1,9 @@
 import logging
 import select
 import socket
-import struct
+import time
 import threading
 import uuid
-import re
 from typing import Callable, List, Set
 
 from .. import SenseidReaderConnectionInfo, SupportedSenseidReader
@@ -39,8 +38,8 @@ class WsDiscoveryScanner:
         self._running = False
         self._thread: threading.Thread | None = None
         self._known_ips: Set[str] = set()
-        self._scan_interval = 10.0
-        self._probe_timeout = 3.0
+        self._scan_interval = 5.0
+        self._probe_timeout = 2.0
 
         if autostart:
             self.start()
@@ -111,22 +110,27 @@ class WsDiscoveryScanner:
         if not sockets:
             return
 
-        # Collect responses from all sockets
-        deadline = threading.Event()
-        deadline.wait(self._probe_timeout)
-
-        for sock in sockets:
-            while True:
-                try:
-                    data, addr = sock.recvfrom(65535)
-                    ip = addr[0]
-                    response = data.decode('utf-8', errors='ignore')
-                    self._parse_response(response, ip)
-                except (BlockingIOError, OSError):
+        # Poll sockets for responses, notifying immediately on each reply
+        deadline = time.monotonic() + self._probe_timeout
+        try:
+            while time.monotonic() < deadline:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
                     break
-
-        for sock in sockets:
-            sock.close()
+                readable, _, _ = select.select(sockets, [], [], min(remaining, 0.1))
+                for sock in readable:
+                    try:
+                        data, addr = sock.recvfrom(65535)
+                        ip = addr[0]
+                        response = data.decode('utf-8', errors='ignore')
+                        self._parse_response(response, ip)
+                    except (BlockingIOError, OSError):
+                        pass
+                if not self._running:
+                    break
+        finally:
+            for sock in sockets:
+                sock.close()
 
     def _parse_response(self, response: str, ip: str):
         # ISO 24791-3 RDMP is the RFID Reader Management Profile

@@ -103,7 +103,6 @@ class WsDiscoveryScanner:
                 sock.setblocking(False)
                 sock.sendto(probe, (WS_DISCOVERY_MULTICAST, WS_DISCOVERY_PORT))
                 sockets.append(sock)
-                logger.debug(f'WS-Discovery probe sent via {local_ip}')
             except Exception as e:
                 logger.debug(f'WS-Discovery: could not send via {local_ip}: {e}')
 

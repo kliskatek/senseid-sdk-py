@@ -26,7 +26,7 @@ class SupportedSenseidReader(Enum):
     NURAPI = 'NURAPI'
     NURAPY = 'NURAPY'
     OCTANE = 'OCTANE'
-    SPEEDWAY = 'SPEEDWAY'
+    IMPINJ_LLRP = 'IMPINJ_LLRP'
     KLSBLELCR = 'KLSBLELCR'
     ACR1552 = 'ACR1552'
     IMPINJ_IOT = 'IMPINJ_IOT'
@@ -122,7 +122,7 @@ def create_SenseidReader(reader_info: SenseidReaderConnectionInfo = None, notifi
     if reader_info.driver == SupportedSenseidReader.NURAPY:
         from .nurapy import SenseidNurapy
         return SenseidNurapy()
-    if reader_info.driver == SupportedSenseidReader.SPEEDWAY:
+    if reader_info.driver == SupportedSenseidReader.IMPINJ_LLRP:
         from .speedway import SenseidSpeedway
         return SenseidSpeedway()
     if reader_info.driver == SupportedSenseidReader.KLSBLELCR:

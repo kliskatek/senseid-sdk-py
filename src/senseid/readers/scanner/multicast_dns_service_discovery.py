@@ -39,7 +39,7 @@ class MulticastDnsServiceDiscoveryScanner:
                                 conn_infos = [
                                     SenseidReaderConnectionInfo(driver=SupportedSenseidReader.OCTANE,
                                                                 connection_string=ip_str),
-                                    SenseidReaderConnectionInfo(driver=SupportedSenseidReader.SPEEDWAY,
+                                    SenseidReaderConnectionInfo(driver=SupportedSenseidReader.IMPINJ_LLRP,
                                                                 connection_string=ip_str),
                                 ]
                                 self.ips[ip_str] = conn_infos
@@ -89,7 +89,7 @@ class MulticastDnsServiceDiscoveryScanner:
                             if ip_str not in self.ips:
                                 logger.info('New Mercury readers found: ' + ip_str)
                                 conn_infos = [
-                                    SenseidReaderConnectionInfo(driver=SupportedSenseidReader.SPEEDWAY,
+                                    SenseidReaderConnectionInfo(driver=SupportedSenseidReader.IMPINJ_LLRP,
                                                                 connection_string=ip_str),
                                 ]
                                 self.ips[ip_str] = conn_infos

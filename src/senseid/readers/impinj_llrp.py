@@ -10,7 +10,7 @@ from ..parsers.rain import SenseidRainTag
 logger = logging.getLogger(__name__)
 
 
-class SenseidSpeedway(SenseidReader):
+class SenseidImpinjLlrp(SenseidReader):
 
     def __init__(self):
         self.driver = ImpinjLlrp()

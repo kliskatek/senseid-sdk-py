@@ -123,8 +123,8 @@ def create_SenseidReader(reader_info: SenseidReaderConnectionInfo = None, notifi
         from .nurapy import SenseidNurapy
         return SenseidNurapy()
     if reader_info.driver == SupportedSenseidReader.IMPINJ_LLRP:
-        from .speedway import SenseidSpeedway
-        return SenseidSpeedway()
+        from .impinj_llrp import SenseidImpinjLlrp
+        return SenseidImpinjLlrp()
     if reader_info.driver == SupportedSenseidReader.KLSBLELCR:
         from .klsblelcr import SenseidKlSbleLcr
         return SenseidKlSbleLcr()

@@ -32,9 +32,11 @@ dependencies = [
   'nurapi',
   'nurapy',
   'octane-sdk-wrapper',
+  'impinj-llrp',
+  'zebra-llrp',
+  'impinj-iot',
   'driver-sble-py-klsblelcf',
   'zeroconf',
-  'sllurp',
   'usb-monitor',
   'driver-snfc-py-acr1552'
 ]

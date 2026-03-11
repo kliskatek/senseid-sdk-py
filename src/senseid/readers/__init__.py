@@ -22,12 +22,12 @@ class SenseidReaderError(Exception):
 
 
 class SupportedSenseidReader(Enum):
-    REDRCP = 'REDRCP'
-    NURAPY = 'NURAPY'
-    IMPINJ_LLRP = 'IMPINJ_LLRP'
-    KLSBLELCR = 'KLSBLELCR'
     ACR1552 = 'ACR1552'
     IMPINJ_IOT = 'IMPINJ_IOT'
+    IMPINJ_LLRP = 'IMPINJ_LLRP'
+    KLSBLELCR = 'KLSBLELCR'
+    NURAPY = 'NURAPY'
+    REDRCP = 'REDRCP'
     ZEBRA_LLRP = 'ZEBRA_LLRP'
 
 

@@ -72,7 +72,6 @@ class MulticastDnsServiceDiscoveryScanner:
                 if state_change is ServiceStateChange.Added and ip_str not in self.ips:
                     logger.info('New Speedway reader found: ' + ip_str)
                     self._add_reader(ip_str, [
-                        SenseidReaderConnectionInfo(driver=SupportedSenseidReader.OCTANE, connection_string=ip_str),
                         SenseidReaderConnectionInfo(driver=SupportedSenseidReader.IMPINJ_LLRP, connection_string=ip_str),
                     ])
                 elif state_change is ServiceStateChange.Removed and ip_str in self.ips:

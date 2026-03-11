@@ -24,7 +24,6 @@ class SenseidReaderError(Exception):
 class SupportedSenseidReader(Enum):
     REDRCP = 'REDRCP'
     NURAPY = 'NURAPY'
-    OCTANE = 'OCTANE'
     IMPINJ_LLRP = 'IMPINJ_LLRP'
     KLSBLELCR = 'KLSBLELCR'
     ACR1552 = 'ACR1552'
@@ -112,9 +111,6 @@ def create_SenseidReader(reader_info: SenseidReaderConnectionInfo = None, notifi
     if reader_info.driver == SupportedSenseidReader.REDRCP:
         from .redrcp import SenseidReaderRedRcp
         return SenseidReaderRedRcp()
-    if reader_info.driver == SupportedSenseidReader.OCTANE:
-        from .octane import SenseidOctane
-        return SenseidOctane()
     if reader_info.driver == SupportedSenseidReader.NURAPY:
         from .nurapy import SenseidNurapy
         return SenseidNurapy()

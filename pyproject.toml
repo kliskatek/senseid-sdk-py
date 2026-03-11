@@ -30,7 +30,6 @@ dependencies = [
   'dataclasses_json',
   'redrcp',
   'nurapy',
-  'octane-sdk-wrapper',
   'impinj-llrp',
   'zebra-llrp',
   'impinj-iot',

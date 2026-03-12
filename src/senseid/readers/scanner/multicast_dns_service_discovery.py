@@ -15,11 +15,16 @@ _no_verify_ctx.check_hostname = False
 _no_verify_ctx.verify_mode = ssl.CERT_NONE
 
 
-def _is_iot_mode(ip: str, timeout: float = 1.5) -> bool:
-    """Check if an Impinj R700 is in IoT mode by probing its REST API."""
+def _is_iot_mode(ip: str, timeout: float = 2.0) -> bool:
+    """Check if an Impinj R700 is in IoT mode by probing its REST API.
+    A 2xx or 401 response means the REST API is active (IoT mode).
+    Connection refused / timeout means LLRP mode."""
     try:
         req = urllib.request.Request(f"https://{ip}/api/v1/system", method='GET')
         urllib.request.urlopen(req, timeout=timeout, context=_no_verify_ctx)
+        return True
+    except urllib.error.HTTPError:
+        # 401/403 etc. — REST API is up, so IoT mode
         return True
     except Exception:
         return False

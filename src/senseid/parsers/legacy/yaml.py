@@ -51,6 +51,7 @@ class SenseidLegacyDef:
     version: int
     date: datetime.date
     pen_header: bytearray
+    epc_family_marker: int
     memory_bank: SenseidMemoryBank
     word_offset: int
     word_count: int

@@ -43,8 +43,10 @@ class SenseidLegacyTag(SenseidTag):
         header_len = len(SENSEID_LEGACY_DEF.pen_header)
         if epc_bytes[0:header_len] != SENSEID_LEGACY_DEF.pen_header:
             return False
-        # Legacy EPC layout: PEN(5) + type(1) + SN(6) = 12 bytes / 96 bits
-        if len(epc_bytes) < header_len + 1 + 6:
+        # Legacy EPC layout: PEN(5) + type(1) + family_marker(1) + SN(5) = 12 B
+        if len(epc_bytes) < header_len + 1 + 1 + 5:
+            return False
+        if epc_bytes[header_len + 1] != SENSEID_LEGACY_DEF.epc_family_marker:
             return False
         return True
 
@@ -116,7 +118,7 @@ class SenseidLegacyTag(SenseidTag):
             return
 
         senseid_type = epc_bytes[5]
-        self.sn = int.from_bytes(epc_bytes[6:12], 'big')
+        self.sn = int.from_bytes(epc_bytes[7:12], 'big')
         self.id = epc_bytes[0:12].hex().upper()
         type_config = SENSEID_LEGACY_DEF.types.get(senseid_type)
 

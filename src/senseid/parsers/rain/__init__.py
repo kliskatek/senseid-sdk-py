@@ -31,11 +31,21 @@ class SenseidRainTag(SenseidTag):
                 raise TypeError('epc must be a hex string or bytearray')
         return epc
 
+    # Reserved fw_version value that marks a tag as belonging to the
+    # SenseID legacy family (sensor data in User memory instead of EPC).
+    # See senseid_legacy.yaml :: epc_family_marker.
+    _LEGACY_FAMILY_MARKER = 0xFF
+
     def _is_senseid_epc(self, epc_bytes: bytearray):
         pen_header = epc_bytes[0:len(SENSEID_RAIN_DEF.pen_header)]
         if pen_header != SENSEID_RAIN_DEF.pen_header:
             return False
         if len(epc_bytes) < len(SENSEID_RAIN_DEF.pen_header) + 2 + 3:  # PEN + TYPE + SN
+            return False
+        # Legacy-family EPCs share our PEN but byte 6 = 0xFF instead of a
+        # real fw_version — they are not standard SenseID and must not be
+        # decoded as such.
+        if epc_bytes[len(SENSEID_RAIN_DEF.pen_header) + 1] == self._LEGACY_FAMILY_MARKER:
             return False
         return True
 
@@ -68,7 +78,7 @@ class SenseidRainTag(SenseidTag):
         self.description = senseid_type_config.description
         self.datasheet_url = senseid_type_config.datasheet_url
         self.store_url = senseid_type_config.store_url
-        self.data = []
+        data = []
         try:
             for data_config in senseid_type_config.data_def:
                 value_raw = None
@@ -96,14 +106,19 @@ class SenseidRainTag(SenseidTag):
                         t0 = data_config.coefficients[2] + 273.15
                         value = 1 / (1 / t0 + 1 / beta * log(r_thermistor / r0)) - 273.15
 
-                data = SenseidData(magnitude=data_config.magnitude,
-                                   magnitude_short=data_config.magnitude_short,
-                                   unit_long=data_config.unit_long,
-                                   unit_short=data_config.unit_short,
-                                   value=value)
-                self.data.append(data)
-        except Exception as e:
-            raise Exception("Error parsing senseid data")
+                data.append(SenseidData(magnitude=data_config.magnitude,
+                                        magnitude_short=data_config.magnitude_short,
+                                        unit_long=data_config.unit_long,
+                                        unit_short=data_config.unit_short,
+                                        value=value))
+            self.data = data
+        except Exception:
+            # EPC is recognised as SenseID type but the payload does not match
+            # the data_def (e.g. a legacy tag whose EPC carries no sensor data
+            # because the sensor lives in User memory). Keep the tag visible
+            # with id/name/sn but leave data empty.
+            logger.debug('Could not parse sensor data from EPC for type 0x%02X', senseid_type)
+            self.data = None
 
     def parse_epc(self, epc: str | bytearray):
         epc_bytes = self._get_bytearray_epc(epc)

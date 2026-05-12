@@ -43,7 +43,8 @@ class SenseidLegacyTag(SenseidTag):
         header_len = len(SENSEID_LEGACY_DEF.pen_header)
         if epc_bytes[0:header_len] != SENSEID_LEGACY_DEF.pen_header:
             return False
-        if len(epc_bytes) < header_len + 2 + 3:  # PEN + TYPE + min SN
+        # Legacy EPC layout: PEN(5) + type(1) + SN(6) = 12 bytes / 96 bits
+        if len(epc_bytes) < header_len + 1 + 6:
             return False
         return True
 
@@ -51,7 +52,7 @@ class SenseidLegacyTag(SenseidTag):
         """Decode sensor values from the User-memory datagram.
 
         Layout:
-          byte 0   : fw_version (uint8)
+          byte 0   : fw_version (uint8) — versions the datagram format
           bytes 1+ : sensor data per type.data_def (little-endian)
           last byte: QoS byte appended by R100 (ignored)
         """
@@ -65,6 +66,7 @@ class SenseidLegacyTag(SenseidTag):
             self.data = None
             return
 
+        self.fw_version = fw_version_blob
         payload = user_mem[1:]
         self.data = []
         try:
@@ -102,28 +104,25 @@ class SenseidLegacyTag(SenseidTag):
         epc_bytes = self._to_bytearray(epc)
         user_mem = self._to_bytearray(user_mem_hex)
         self.id = epc_bytes.hex().upper()
+        self.fw_version = None
+        self.sn = None
 
-        if self._is_senseid_epc(epc_bytes):
-            senseid_type = epc_bytes[5]
-            self.fw_version = epc_bytes[6]
-            self.sn = struct.unpack('>I', bytearray([0]) + epc_bytes[7:10])[0]
-            self.id = epc_bytes[0:10].hex().upper()
-            type_config = SENSEID_LEGACY_DEF.types.get(senseid_type)
-        elif user_mem is not None and len(user_mem) > 0:
-            # Factory EPC (not SenseID-style) but reader returned user-memory
-            # data. Pre-MTP legacy tags still carry their original 128-bit
-            # factory EPC; decode user_mem using the single legacy type.
-            self.fw_version = None
-            self.sn = None
-            type_config = next(iter(SENSEID_LEGACY_DEF.types.values()), None)
-        else:
-            type_config = None
-
-        if type_config is None:
-            self.fw_version = None
-            self.sn = None
+        if not self._is_senseid_epc(epc_bytes):
             self.name = 'Rain ID'
             self.description = 'Standard Rain ID tag'
+            self.datasheet_url = None
+            self.store_url = None
+            self.data = None
+            return
+
+        senseid_type = epc_bytes[5]
+        self.sn = int.from_bytes(epc_bytes[6:12], 'big')
+        self.id = epc_bytes[0:12].hex().upper()
+        type_config = SENSEID_LEGACY_DEF.types.get(senseid_type)
+
+        if type_config is None:
+            self.name = 'Unknown legacy type'
+            self.description = 'Unknown legacy type'
             self.datasheet_url = None
             self.store_url = None
             self.data = None

@@ -6,7 +6,7 @@ from typing import List, Callable, Optional
 from driver_snfc_py_acr1552.acr1552 import Acr1552
 
 from . import SenseidReader, SenseidReaderDetails, SenseidReaderMode, SenseidReaderError
-from ..parsers import SenseidTag
+from ..parsers import SenseidTag, SenseidTechnologies
 from ..parsers.nfc import convert_to_uint, Endianness, parse_nfc_ndef, parse_nfc_bulk_sample
 from ..parsers.nfc.yaml import SENSEID_NFC_DEF
 
@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class SenseidAcr1552(SenseidReader):
+
+    technology = SenseidTechnologies.NFC
 
     NTAG5_NDEF_BASE_BLOCK = 0
     NTAG5_NDEF_HEADER_NBLOCKS = 2

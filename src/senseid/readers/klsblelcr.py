@@ -5,13 +5,15 @@ from typing import List, Callable
 from driver_sble_py_klsblelcf import KlSbleLcr
 
 from . import SenseidReader, SenseidReaderDetails
-from ..parsers import SenseidTag
+from ..parsers import SenseidTag, SenseidTechnologies
 from ..parsers.ble import SenseidBleTag
 
 logger = logging.getLogger(__name__)
 
 
 class SenseidKlSbleLcr(SenseidReader):
+
+    technology = SenseidTechnologies.BLE
 
     def __init__(self):
         self.details = None

@@ -3,8 +3,10 @@ from typing import List, Callable, Optional
 
 from impinj_iot import ImpinjIot, ImpinjIotTagReport, RfMode
 
-from . import SenseidReader, SenseidReaderDetails, SenseidReaderError
+from . import SenseidReader, SenseidReaderDetails, SenseidReaderError, SenseidReaderMode
 from ..parsers import SenseidTag
+from ..parsers.legacy import SenseidLegacyTag
+from ..parsers.legacy.yaml import SENSEID_LEGACY_DEF
 from ..parsers.rain import SenseidRainTag
 
 logger = logging.getLogger(__name__)
@@ -17,6 +19,7 @@ class SenseidImpinjIot(SenseidReader):
         self.notification_callback = None
         self.error_callback = None
         self.details = None
+        self._mode: SenseidReaderMode = SenseidReaderMode.SENSEID
 
     def connect(self, connection_string: str):
         if not self.driver.connect(ip=connection_string):
@@ -34,8 +37,13 @@ class SenseidImpinjIot(SenseidReader):
         return True
 
     def _driver_notification_callback(self, tag_report: ImpinjIotTagReport):
-        if self.notification_callback is not None:
-            self.notification_callback(SenseidRainTag(epc=tag_report.epc))
+        if self.notification_callback is None:
+            return
+        if self._mode == SenseidReaderMode.LEGACY:
+            tag = SenseidLegacyTag(epc=tag_report.epc, user_mem_hex=tag_report.user_mem)
+        else:
+            tag = SenseidRainTag(epc=tag_report.epc)
+        self.notification_callback(tag)
 
     def disconnect(self):
         self.driver.disconnect()
@@ -52,6 +60,7 @@ class SenseidImpinjIot(SenseidReader):
                 antenna_count=info.antenna_count,
                 min_tx_power=info.min_tx_power_cdbm / 100.0,
                 max_tx_power=info.max_tx_power_cdbm / 100.0,
+                technology=self.technology,
             )
         return self.details
 
@@ -77,6 +86,24 @@ class SenseidImpinjIot(SenseidReader):
             antenna_config_array[0] = True
             logger.warning('At least one antenna needs to be active. Enabling antenna 1.')
         self.driver.set_antenna_config(antenna_config_array)
+
+    def get_supported_modes(self) -> List[SenseidReaderMode]:
+        return [SenseidReaderMode.SENSEID, SenseidReaderMode.LEGACY]
+
+    def get_mode(self) -> SenseidReaderMode:
+        return self._mode
+
+    def set_mode(self, mode: SenseidReaderMode):
+        super().set_mode(mode)
+        self._mode = mode
+        if mode == SenseidReaderMode.LEGACY:
+            self.driver.set_tag_memory_reads([{
+                'memoryBank': SENSEID_LEGACY_DEF.memory_bank.value,
+                'wordOffset': SENSEID_LEGACY_DEF.word_offset,
+                'wordCount': SENSEID_LEGACY_DEF.word_count,
+            }])
+        else:
+            self.driver.set_tag_memory_reads(None)
 
     def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None],
                               error_callback: Optional[Callable[['SenseidReaderError'], None]] = None):

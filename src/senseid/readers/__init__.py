@@ -5,11 +5,12 @@ from abc import ABC, abstractmethod
 
 from dataclasses_json import dataclass_json
 
-from ..parsers import SenseidTag
+from ..parsers import SenseidTag, SenseidTechnologies
 
 
 class SenseidReaderMode(Enum):
-    SENSEID = 'SENSEID'
+    SENSEID = 'SENSEID'   # RAIN inventory only, sensor data in EPC (default SenseID family)
+    LEGACY = 'LEGACY'     # RAIN inventory + embedded User-memory read (Kliskatek legacy tags)
     NDEF = 'NDEF'
     BULK = 'BULK'
 
@@ -47,9 +48,11 @@ class SenseidReaderDetails:
     antenna_count: int = None
     min_tx_power: float = None
     max_tx_power: float = None
+    technology: SenseidTechnologies = None
 
 
 class SenseidReader(ABC):
+    technology: SenseidTechnologies = SenseidTechnologies.RAIN
 
     @abstractmethod
     def connect(self, connection_string: str):

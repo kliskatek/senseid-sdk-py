@@ -5,6 +5,8 @@ from impinj_iot import ImpinjIot, ImpinjIotTagReport, RfMode
 
 from . import SenseidReader, SenseidReaderDetails, SenseidReaderError, SenseidReaderMode
 from ..parsers import SenseidTag
+from ..parsers.farsens import SenseidFarsensTag
+from ..parsers.farsens.yaml import SENSEID_FARSENS_DEF
 from ..parsers.legacy import SenseidLegacyTag
 from ..parsers.legacy.yaml import SENSEID_LEGACY_DEF
 from ..parsers.rain import SenseidRainTag
@@ -42,10 +44,26 @@ class SenseidImpinjIot(SenseidReader):
         if self.notification_callback is None:
             return
         if self._mode == SenseidReaderMode.LEGACY:
-            tag = SenseidLegacyTag(epc=tag_report.epc, user_mem_hex=tag_report.user_mem)
+            tag = self._build_legacy_tag(tag_report)
         else:
             tag = SenseidRainTag(epc=tag_report.epc)
         self.notification_callback(tag)
+
+    @staticmethod
+    def _epc_starts_with(epc_hex: str, prefix: bytes) -> bool:
+        try:
+            epc_bytes = bytes.fromhex(epc_hex)
+        except (ValueError, TypeError):
+            return False
+        return epc_bytes[:len(prefix)] == prefix
+
+    def _build_legacy_tag(self, tag_report: ImpinjIotTagReport) -> SenseidTag:
+        # Dispatch the parser by EPC PEN: Kliskatek legacy vs Farsens.
+        # Anything else falls back to the generic Rain ID via the legacy
+        # parser (its non-senseid-epc branch).
+        if self._epc_starts_with(tag_report.epc, bytes(SENSEID_FARSENS_DEF.pen_header)):
+            return SenseidFarsensTag(epc=tag_report.epc, user_mem_hex=tag_report.user_mem)
+        return SenseidLegacyTag(epc=tag_report.epc, user_mem_hex=tag_report.user_mem)
 
     def disconnect(self):
         self.driver.disconnect()
@@ -99,10 +117,17 @@ class SenseidImpinjIot(SenseidReader):
         super().set_mode(mode)
         self._mode = mode
         if mode == SenseidReaderMode.LEGACY:
+            # A single embedded read serves both Kliskatek legacy tags and the
+            # Farsens family; use the widest word_count across the two YAMLs so
+            # every model has its full datagram in the response. Tags with
+            # smaller SPI buffers just return garbage in the trailing words
+            # and their parsers ignore it.
+            word_count = max(SENSEID_LEGACY_DEF.word_count,
+                             SENSEID_FARSENS_DEF.word_count)
             reads = [{
                 'memoryBank': SENSEID_LEGACY_DEF.memory_bank.value,
                 'wordOffset': SENSEID_LEGACY_DEF.word_offset,
-                'wordCount': SENSEID_LEGACY_DEF.word_count,
+                'wordCount': word_count,
             }]
             self.driver.set_tag_memory_reads(reads)
             logger.info('Reader mode set to LEGACY (tagMemoryReads=%s)', reads)

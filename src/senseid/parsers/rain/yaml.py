@@ -18,6 +18,7 @@ class SenseidTransformType(Enum):
     NONE = 'none'
     LINEAR = 'linear'
     THERMISTOR_BETA = 'thermistor-beta'
+    LDR = 'ldr'  # 16-bit packed: exponent (4 high bits) + fraction (12 low bits) -> c * 2^exp * frac
 
 
 @dataclass_json

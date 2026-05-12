@@ -1,4 +1,5 @@
 import logging
+import math
 import struct
 from dataclasses import dataclass
 from datetime import datetime
@@ -84,6 +85,27 @@ class SenseidFarsensTag(SenseidTag):
                         value = value_raw
                     elif data_config.transform == SenseidTransformType.LINEAR:
                         value = data_config.coefficients[0] + data_config.coefficients[1] * value_raw
+                    elif data_config.transform == SenseidTransformType.LDR:
+                        # uint16 LE packed as: bits 15..12 = exponent,
+                        # bits 11..0 = fraction. Real value = c * 2^exp * frac.
+                        exp = (int(value_raw) >> 12) & 0x0F
+                        frac = int(value_raw) & 0x0FFF
+                        c = data_config.coefficients[0] if data_config.coefficients else 1.0
+                        value = c * (2 ** exp) * frac
+                    elif data_config.transform == SenseidTransformType.THERMISTOR_BETA:
+                        # Farsens reports thermistor resistance directly as a
+                        # float32; SenseID standard tags ship a 12-bit ADC
+                        # value from a 10kΩ half-bridge that needs unbridging
+                        # first. Steinhart-Hart simplified is identical in
+                        # both cases once R is known.
+                        if data_config.type == SenseidValueType.FLOAT:
+                            r_thermistor = value_raw
+                        else:
+                            r_thermistor = value_raw * 10e3 / (4095 - value_raw)
+                        beta = data_config.coefficients[0]
+                        r0 = data_config.coefficients[1]
+                        t0 = data_config.coefficients[2] + 273.15
+                        value = 1 / (1 / t0 + 1 / beta * math.log(r_thermistor / r0)) - 273.15
 
                 self.data.append(SenseidData(
                     magnitude=data_config.magnitude,

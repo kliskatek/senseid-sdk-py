@@ -32,8 +32,10 @@ class SenseidImpinjIot(SenseidReader):
         antenna_config = [False] * self.details.antenna_count
         antenna_config[0] = True
         self.driver.set_antenna_config(antenna_config)
-        # Set SenseID compatible RF mode
-        self.driver.set_rf_mode(RfMode.DENSE_READER_M4)
+        # Set SenseID compatible RF mode (static 246 = M4, BLF 320kHz, Tari 15.6us,
+        # DR 64/3). LLRP DENSE_READER_M4 would map similar in ETSI but tag-side
+        # behaviour can differ slightly; pin the static mode for determinism.
+        self.driver.set_rf_mode(RfMode.STATIC_246)
         return True
 
     def _driver_notification_callback(self, tag_report: ImpinjIotTagReport):
@@ -97,13 +99,16 @@ class SenseidImpinjIot(SenseidReader):
         super().set_mode(mode)
         self._mode = mode
         if mode == SenseidReaderMode.LEGACY:
-            self.driver.set_tag_memory_reads([{
+            reads = [{
                 'memoryBank': SENSEID_LEGACY_DEF.memory_bank.value,
                 'wordOffset': SENSEID_LEGACY_DEF.word_offset,
                 'wordCount': SENSEID_LEGACY_DEF.word_count,
-            }])
+            }]
+            self.driver.set_tag_memory_reads(reads)
+            logger.info('Reader mode set to LEGACY (tagMemoryReads=%s)', reads)
         else:
             self.driver.set_tag_memory_reads(None)
+            logger.info('Reader mode set to %s (no embedded memory reads)', mode.value)
 
     def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None],
                               error_callback: Optional[Callable[['SenseidReaderError'], None]] = None):

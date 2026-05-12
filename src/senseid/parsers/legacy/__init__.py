@@ -103,25 +103,27 @@ class SenseidLegacyTag(SenseidTag):
         user_mem = self._to_bytearray(user_mem_hex)
         self.id = epc_bytes.hex().upper()
 
-        if not self._is_senseid_epc(epc_bytes):
+        if self._is_senseid_epc(epc_bytes):
+            senseid_type = epc_bytes[5]
+            self.fw_version = epc_bytes[6]
+            self.sn = struct.unpack('>I', bytearray([0]) + epc_bytes[7:10])[0]
+            self.id = epc_bytes[0:10].hex().upper()
+            type_config = SENSEID_LEGACY_DEF.types.get(senseid_type)
+        elif user_mem is not None and len(user_mem) > 0:
+            # Factory EPC (not SenseID-style) but reader returned user-memory
+            # data. Pre-MTP legacy tags still carry their original 128-bit
+            # factory EPC; decode user_mem using the single legacy type.
+            self.fw_version = None
+            self.sn = None
+            type_config = next(iter(SENSEID_LEGACY_DEF.types.values()), None)
+        else:
+            type_config = None
+
+        if type_config is None:
             self.fw_version = None
             self.sn = None
             self.name = 'Rain ID'
             self.description = 'Standard Rain ID tag'
-            self.datasheet_url = None
-            self.store_url = None
-            self.data = None
-            return
-
-        senseid_type = epc_bytes[5]
-        self.fw_version = epc_bytes[6]
-        self.sn = struct.unpack('>I', bytearray([0]) + epc_bytes[7:10])[0]
-        self.id = epc_bytes[0:10].hex().upper()
-
-        type_config = SENSEID_LEGACY_DEF.types.get(senseid_type)
-        if type_config is None:
-            self.name = 'Unknown legacy type'
-            self.description = 'Unknown legacy type'
             self.datasheet_url = None
             self.store_url = None
             self.data = None

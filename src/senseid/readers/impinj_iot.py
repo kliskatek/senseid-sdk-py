@@ -43,27 +43,31 @@ class SenseidImpinjIot(SenseidReader):
     def _driver_notification_callback(self, tag_report: ImpinjIotTagReport):
         if self.notification_callback is None:
             return
-        if self._mode == SenseidReaderMode.LEGACY:
-            tag = self._build_legacy_tag(tag_report)
-        else:
-            tag = SenseidRainTag(epc=tag_report.epc)
-        self.notification_callback(tag)
+        self.notification_callback(self._build_tag(tag_report))
 
-    @staticmethod
-    def _epc_starts_with(epc_hex: str, prefix: bytes) -> bool:
+    def _build_tag(self, tag_report: ImpinjIotTagReport) -> SenseidTag:
+        # Identify the tag family from the EPC so both SENSEID and LEGACY
+        # modes name the tag correctly. user_mem is only populated in
+        # LEGACY mode; in SENSEID mode the legacy/Farsens parsers still
+        # recognise the model from the EPC and just leave data=None.
+        epc_hex = tag_report.epc
         try:
             epc_bytes = bytes.fromhex(epc_hex)
         except (ValueError, TypeError):
-            return False
-        return epc_bytes[:len(prefix)] == prefix
+            return SenseidRainTag(epc=epc_hex)
 
-    def _build_legacy_tag(self, tag_report: ImpinjIotTagReport) -> SenseidTag:
-        # Dispatch the parser by EPC PEN: Kliskatek legacy vs Farsens.
-        # Anything else falls back to the generic Rain ID via the legacy
-        # parser (its non-senseid-epc branch).
-        if self._epc_starts_with(tag_report.epc, bytes(SENSEID_FARSENS_DEF.pen_header)):
-            return SenseidFarsensTag(epc=tag_report.epc, user_mem_hex=tag_report.user_mem)
-        return SenseidLegacyTag(epc=tag_report.epc, user_mem_hex=tag_report.user_mem)
+        farsens_pen = bytes(SENSEID_FARSENS_DEF.pen_header)
+        if epc_bytes[:len(farsens_pen)] == farsens_pen:
+            return SenseidFarsensTag(epc=epc_hex, user_mem_hex=tag_report.user_mem)
+
+        legacy_pen = bytes(SENSEID_LEGACY_DEF.pen_header)
+        marker_offset = len(legacy_pen) + 1
+        if (len(epc_bytes) > marker_offset
+                and epc_bytes[:len(legacy_pen)] == legacy_pen
+                and epc_bytes[marker_offset] == SENSEID_LEGACY_DEF.epc_family_marker):
+            return SenseidLegacyTag(epc=epc_hex, user_mem_hex=tag_report.user_mem)
+
+        return SenseidRainTag(epc=epc_hex)
 
     def disconnect(self):
         self.driver.disconnect()

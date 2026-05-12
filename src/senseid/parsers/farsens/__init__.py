@@ -28,17 +28,19 @@ class SenseidFarsensTag(SenseidTag):
         self.parse(epc, user_mem_hex)
 
     @staticmethod
-    def _to_bytearray(value: str | bytearray | None) -> Optional[bytearray]:
+    def _to_bytearray(value) -> Optional[bytearray]:
         if value is None:
             return None
-        if isinstance(value, bytearray):
-            return value
+        if isinstance(value, (bytes, bytearray)):
+            return bytearray(value)
         if isinstance(value, str):
             try:
                 return bytearray.fromhex(value)
             except Exception:
-                raise TypeError('value must be a hex string or bytearray')
-        raise TypeError('value must be a hex string or bytearray')
+                logger.debug('Could not parse hex string: %r', value[:40])
+                return None
+        logger.debug('Unsupported value type for Farsens parse: %s', type(value).__name__)
+        return None
 
     def _is_farsens_epc(self, epc_bytes: bytearray) -> bool:
         header_len = len(SENSEID_FARSENS_DEF.pen_header)
@@ -97,9 +99,17 @@ class SenseidFarsensTag(SenseidTag):
     def parse(self, epc: str | bytearray, user_mem_hex: Optional[str | bytearray]):
         epc_bytes = self._to_bytearray(epc)
         user_mem = self._to_bytearray(user_mem_hex)
-        self.id = epc_bytes.hex().upper()
         self.fw_version = None
         self.sn = None
+        if epc_bytes is None:
+            self.id = ''
+            self.name = 'Rain ID'
+            self.description = 'Standard Rain ID tag'
+            self.datasheet_url = None
+            self.store_url = None
+            self.data = None
+            return
+        self.id = epc_bytes.hex().upper()
 
         if not self._is_farsens_epc(epc_bytes):
             self.name = 'Rain ID'

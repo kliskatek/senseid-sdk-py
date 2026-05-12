@@ -9,7 +9,7 @@ from ..parsers import SenseidTag
 
 
 class SenseidReaderMode(Enum):
-    DEFAULT = 'DEFAULT'
+    SENSEID = 'SENSEID'
     NDEF = 'NDEF'
     BULK = 'BULK'
 
@@ -89,10 +89,10 @@ class SenseidReader(ABC):
         pass
 
     def get_supported_modes(self) -> List[SenseidReaderMode]:
-        return [SenseidReaderMode.DEFAULT]
+        return [SenseidReaderMode.SENSEID]
 
     def get_mode(self) -> SenseidReaderMode:
-        return SenseidReaderMode.DEFAULT
+        return SenseidReaderMode.SENSEID
 
     def set_mode(self, mode: SenseidReaderMode):
         supported = self.get_supported_modes()

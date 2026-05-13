@@ -3,7 +3,10 @@ from typing import List, Callable, Optional
 
 from nurapy import NurAPY, NurTagDataMeta, InventoryStreamNotification, ModuleSetupFlags, ModuleSetup, NurDeviceCaps
 from nurapy.protocol.command.inv_read_config import IrBank, IrType
-from nurapy.protocol.command.module_setup import ModuleSetupLinkFreq, ModuleSetupRxDec, ModuleSetupInvTarget
+from nurapy.protocol.command.module_setup import (ModuleSetupLinkFreq,
+                                                  ModuleSetupRxDec,
+                                                  ModuleSetupInvTarget,
+                                                  ModuleSetupPowerSave)
 
 from . import SenseidReader, SenseidReaderDetails, SenseidReaderError, SenseidReaderMode
 from ..parsers import SenseidTag
@@ -29,20 +32,38 @@ class SenseidNurapy(SenseidReader):
     def connect(self, connection_string: str):
         self.driver.connect(connection_string=connection_string)
         self.driver.set_notification_callback(self._nur_notification_callback)
+
+        # STIX modules can come up still running a continuous inventory from
+        # the previous session (especially after USB re-enumerate). RfidDemo
+        # always sends STOPALLCONT right after PING; if we don't, our first
+        # commands race with the module's stream and the radio appears
+        # half-broken. Mirror that.
+        try:
+            self.driver.stop_all_cont()
+        except Exception as e:
+            logger.debug('stop_all_cont on connect: %s', e)
+
         self.get_details()
 
-        # Set Senseid compatible mode
+        # Set Senseid compatible mode.
+        # AUTOPERIOD = NOT_IN_USE disables the STIX auto-stix periodic mode.
+        # When AUTO is on, the module duty-cycles the carrier itself, which
+        # halves (or worse) the observable read rate from the host. RfidDemo
+        # disables it on every connect and the radio defaults aren't always
+        # right after a power-cycle/re-plug.
         module_setup = ModuleSetup()
         module_setup.link_freq = ModuleSetupLinkFreq.BLF_256
         module_setup.rx_decoding = ModuleSetupRxDec.MILLER_4
         module_setup.inventory_q = 2
         module_setup.inventory_session = 0
         module_setup.inventory_target = ModuleSetupInvTarget.AB
+        module_setup.period_setup = ModuleSetupPowerSave.NOT_IN_USE
         self.driver.set_module_setup(setup_flags=[ModuleSetupFlags.LINKFREQ,
                                                   ModuleSetupFlags.RXDEC,
                                                   ModuleSetupFlags.INVQ,
                                                   ModuleSetupFlags.INVSESSION,
-                                                  ModuleSetupFlags.INVTARGET],
+                                                  ModuleSetupFlags.INVTARGET,
+                                                  ModuleSetupFlags.AUTOPERIOD],
                                      module_setup=module_setup)
 
         # Set MAX TX Power

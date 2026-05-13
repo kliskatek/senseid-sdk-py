@@ -16,8 +16,8 @@ from ..readers import SenseidReader, SenseidReaderDetails, SenseidReaderMode
 logger = logging.getLogger(__name__)
 
 
-LEGACY_INVENTORY_WINDOW_S = 0.3     # short inventory burst to discover EPCs (only at start)
-LEGACY_READ_PERIOD_S = 0.2          # min interval between Read commands (≥ MCU systick)
+LEGACY_OP_PERIOD_S = 0.1          # min interval between consecutive operations
+LEGACY_INVENTORY_WINDOW_S = 0.08  # how long the inventory op holds the air
 LEGACY_USER_WORD_PTR = 0x100
 
 
@@ -125,65 +125,76 @@ class SenseidReaderRedRcp(SenseidReader):
                 or self._epc_starts_with(epc_hex, bytes(SENSEID_FARSENS_DEF.pen_header)))
 
     def _legacy_loop(self):
-        """One initial inventory burst to discover the tags in the field,
-        then CW ON for the rest of the session and one user-memory Read
-        every LEGACY_READ_PERIOD_S, cycling through the known EPCs.
+        """CW on continuously. Every LEGACY_OP_PERIOD_S we run one
+        operation from a rotating list:
+          [inventory, read sensor_tag_1, read sensor_tag_2, ...]
 
-        The period (≥ ~200 ms) matches the legacy MCU systick: reading
-        faster doesn't yield fresh data and wastes air time.
+        - "inventory" refreshes the list of sensor EPCs (legacy / Farsens).
+        - "read"  performs a user-memory Read of one sensor tag.
 
-        Only tags whose EPC matches the legacy / Farsens PEN are read;
-        anything else is emitted once as plain Rain ID so it still shows
-        up in the inventory but we don't waste 3 s of timeout per random
-        Alien tag."""
-        # Phase 1: one-shot inventory to discover what's in the field.
-        with self._legacy_seen_lock:
-            self._legacy_seen.clear()
+        Non-sensor tags are emitted once per inventory pass as plain
+        Rain ID (no Read attempted on them — would just burn the
+        driver's 3 s timeout)."""
+        sensor_epcs: list[str] = []
+        seen_passthrough: set[str] = set()
+
+        def do_inventory():
+            with self._legacy_seen_lock:
+                self._legacy_seen.clear()
+            try:
+                self.driver.start_auto_read2()
+            except Exception as e:
+                logger.error('legacy_loop start_auto_read2 failed: %s', e)
+                return
+            self._legacy_stop.wait(LEGACY_INVENTORY_WINDOW_S)
+            try:
+                self.driver.stop_auto_read2()
+            except Exception:
+                pass
+            with self._legacy_seen_lock:
+                seen = set(self._legacy_seen)
+            new_sensor = [e for e in seen if self._is_legacy_or_farsens(e)]
+            # Preserve the rotation order; append newcomers, drop strays.
+            sensor_epcs[:] = [e for e in sensor_epcs if e in new_sensor] + \
+                             [e for e in new_sensor if e not in sensor_epcs]
+            for epc in seen - set(sensor_epcs):
+                if epc not in seen_passthrough:
+                    seen_passthrough.add(epc)
+                    self._emit_tag(epc, None)
+
+        def do_read(epc_hex: str):
+            user_mem = None
+            try:
+                data = self.driver.read(epc_hex, ParamMemory.USER,
+                                        LEGACY_USER_WORD_PTR,
+                                        self._legacy_word_count)
+                if data:
+                    user_mem = bytes(data).hex().upper()
+            except Exception as e:
+                logger.debug('legacy_loop read(%s) failed: %s', epc_hex, e)
+            self._emit_tag(epc_hex, user_mem)
+
         try:
-            self.driver.start_auto_read2()
-        except Exception as e:
-            logger.error('legacy_loop start_auto_read2 failed: %s', e)
-            return
-        self._legacy_stop.wait(LEGACY_INVENTORY_WINDOW_S)
-        try:
-            self.driver.stop_auto_read2()
-        except Exception:
-            pass
-        with self._legacy_seen_lock:
-            seen = set(self._legacy_seen)
-        sensor_epcs = [e for e in seen if self._is_legacy_or_farsens(e)]
-        passthrough_epcs = seen - set(sensor_epcs)
-        for epc in passthrough_epcs:
-            self._emit_tag(epc, None)
-
-        if not sensor_epcs:
-            logger.info('LEGACY mode: no legacy/Farsens tags in initial inventory')
-            return
-
-        logger.info('LEGACY mode: tracking %d sensor tag(s)', len(sensor_epcs))
-
-        # Phase 2: CW on, paced Reads until stopped.
-        try:
-            self.driver.set_cw(True)
-        except Exception:
-            pass
-        try:
-            idx = 0
+            try:
+                self.driver.set_cw(True)
+            except Exception:
+                pass
+            op_idx = 0
             while not self._legacy_stop.is_set():
-                epc_hex = sensor_epcs[idx % len(sensor_epcs)]
-                idx += 1
-                user_mem = None
-                try:
-                    data = self.driver.read(epc_hex, ParamMemory.USER,
-                                            LEGACY_USER_WORD_PTR,
-                                            self._legacy_word_count)
-                    if data:
-                        user_mem = bytes(data).hex().upper()
-                except Exception as e:
-                    logger.debug('legacy_loop read(%s) failed: %s', epc_hex, e)
-                self._emit_tag(epc_hex, user_mem)
-                # Pace to MCU systick — reading faster yields stale data.
-                self._legacy_stop.wait(LEGACY_READ_PERIOD_S)
+                op_start = time.monotonic()
+                # Rotating ops: index 0 = inventory, 1..N = sensor reads.
+                ops_len = 1 + len(sensor_epcs)
+                op = op_idx % ops_len
+                op_idx += 1
+                if op == 0:
+                    do_inventory()
+                else:
+                    do_read(sensor_epcs[op - 1])
+                # Pace to LEGACY_OP_PERIOD_S between op starts.
+                elapsed = time.monotonic() - op_start
+                remaining = LEGACY_OP_PERIOD_S - elapsed
+                if remaining > 0:
+                    self._legacy_stop.wait(remaining)
         finally:
             try:
                 self.driver.set_cw(False)

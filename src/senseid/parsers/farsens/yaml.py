@@ -20,6 +20,7 @@ class SenseidFarsensDataDef:
     type: SenseidValueType
     transform: SenseidTransformType
     coefficients: List[float]
+    valid_range: Optional[List[float]] = field(default=None)
 
 
 @dataclass_json

@@ -93,6 +93,14 @@ class SenseidLegacyTag(SenseidTag):
                     elif data_config.transform == SenseidTransformType.LINEAR:
                         value = data_config.coefficients[0] + data_config.coefficients[1] * value_raw
 
+                # Range check on the calibrated value (after transform).
+                if (value is not None and data_config.valid_range
+                        and not (data_config.valid_range[0] <= value <= data_config.valid_range[1])):
+                    logger.debug('legacy %s out of range: %s not in %s',
+                                 data_config.magnitude, value, data_config.valid_range)
+                    self.data = None
+                    return
+
                 self.data.append(SenseidData(
                     magnitude=data_config.magnitude,
                     magnitude_short=data_config.magnitude_short,

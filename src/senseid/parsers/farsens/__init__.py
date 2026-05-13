@@ -107,6 +107,14 @@ class SenseidFarsensTag(SenseidTag):
                         t0 = data_config.coefficients[2] + 273.15
                         value = 1 / (1 / t0 + 1 / beta * math.log(r_thermistor / r0)) - 273.15
 
+                # Range check on the calibrated value (after transform).
+                if (value is not None and data_config.valid_range
+                        and not (data_config.valid_range[0] <= value <= data_config.valid_range[1])):
+                    logger.debug('farsens %s out of range: %s not in %s',
+                                 data_config.magnitude, value, data_config.valid_range)
+                    self.data = None
+                    return
+
                 self.data.append(SenseidData(
                     magnitude=data_config.magnitude,
                     magnitude_short=data_config.magnitude_short,

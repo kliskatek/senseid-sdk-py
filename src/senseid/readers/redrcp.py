@@ -125,16 +125,16 @@ class SenseidReaderRedRcp(SenseidReader):
                 or self._epc_starts_with(epc_hex, bytes(SENSEID_FARSENS_DEF.pen_header)))
 
     def _legacy_loop(self):
-        """CW on continuously. Every LEGACY_OP_PERIOD_S we run one
-        operation from a rotating list:
-          [inventory, read sensor_tag_1, read sensor_tag_2, ...]
+        """Rotating operations: [inventory, read sensor_1, read sensor_2, …]
 
-        - "inventory" refreshes the list of sensor EPCs (legacy / Farsens).
-        - "read"  performs a user-memory Read of one sensor tag.
+        CW stays on across consecutive Reads on the RED4S without needing
+        a set_cw(True) between them (verified empirically). The inventory
+        slot uses start_auto_read2/stop_auto_read2 to refresh the EPC
+        list so tags entering the field later get picked up.
 
-        Non-sensor tags are emitted once per inventory pass as plain
-        Rain ID (no Read attempted on them — would just burn the
-        driver's 3 s timeout)."""
+        Non-sensor tags (EPC PEN not legacy/Farsens) are emitted once as
+        Rain ID and never re-read; that keeps the operation queue cheap
+        and avoids the driver's 3 s read timeout on random tags."""
         sensor_epcs: list[str] = []
         seen_passthrough: set[str] = set()
 
@@ -154,7 +154,7 @@ class SenseidReaderRedRcp(SenseidReader):
             with self._legacy_seen_lock:
                 seen = set(self._legacy_seen)
             new_sensor = [e for e in seen if self._is_legacy_or_farsens(e)]
-            # Preserve the rotation order; append newcomers, drop strays.
+            # Keep stable rotation order; append newcomers, drop strays.
             sensor_epcs[:] = [e for e in sensor_epcs if e in new_sensor] + \
                              [e for e in new_sensor if e not in sensor_epcs]
             for epc in seen - set(sensor_epcs):
@@ -175,14 +175,10 @@ class SenseidReaderRedRcp(SenseidReader):
             self._emit_tag(epc_hex, user_mem)
 
         try:
-            try:
-                self.driver.set_cw(True)
-            except Exception:
-                pass
             op_idx = 0
             while not self._legacy_stop.is_set():
                 op_start = time.monotonic()
-                # Rotating ops: index 0 = inventory, 1..N = sensor reads.
+                # Slot 0 = inventory, 1..N = sensor reads (rotating).
                 ops_len = 1 + len(sensor_epcs)
                 op = op_idx % ops_len
                 op_idx += 1
@@ -190,7 +186,6 @@ class SenseidReaderRedRcp(SenseidReader):
                     do_inventory()
                 else:
                     do_read(sensor_epcs[op - 1])
-                # Pace to LEGACY_OP_PERIOD_S between op starts.
                 elapsed = time.monotonic() - op_start
                 remaining = LEGACY_OP_PERIOD_S - elapsed
                 if remaining > 0:

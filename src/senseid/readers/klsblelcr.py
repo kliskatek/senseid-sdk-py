@@ -71,3 +71,13 @@ class SenseidKlSbleLcr(SenseidReader):
 
     def stop_inventory_async(self):
         return self.driver.stop()
+
+    def set_rf_channel(self, channel: int | None) -> bool:
+        """Lock CW to a single RF channel (certification mode).
+
+        None restores frequency hopping (default); 0..3 fixes the reader
+        to one of the four Europe-868 channels (865.7 / 866.3 / 866.9 /
+        867.5 MHz). The setting is volatile — a power-cycle or RESET_*
+        on the reader brings it back to hopping.
+        """
+        return self.driver.set_cw_channel(channel)

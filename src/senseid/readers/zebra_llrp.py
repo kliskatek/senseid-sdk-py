@@ -41,7 +41,6 @@ class SenseidZebraLlrp(SenseidReader):
         self.driver.set_antenna_config([1])
         # Set SenseID compatible RF mode (M4, dense reader)
         self.driver.set_rf_mode(FX9600RfMode.M4_BLF256_T25_P15)
-        self.driver.set_trext(True)
         return True
 
     @staticmethod

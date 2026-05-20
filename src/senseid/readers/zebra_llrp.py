@@ -55,19 +55,30 @@ class SenseidZebraLlrp(SenseidReader):
         return True
 
     @staticmethod
-    def _epc_starts_with(epc_hex: str, prefix: bytes) -> bool:
+    def _epc_bytes(epc_hex: str) -> bytes:
         try:
-            epc_bytes = bytes.fromhex(epc_hex)
+            return bytes.fromhex(epc_hex)
         except (ValueError, TypeError):
-            return False
-        return epc_bytes[:len(prefix)] == prefix
+            return b''
 
     def _build_tag(self, tag_report: ZebraLlrpTagReport) -> SenseidTag:
         epc = tag_report.epc
-        if self._epc_starts_with(epc, bytes(SENSEID_FARSENS_DEF.pen_header)):
+        epc_bytes = self._epc_bytes(epc)
+
+        farsens_pen = bytes(SENSEID_FARSENS_DEF.pen_header)
+        if epc_bytes[:len(farsens_pen)] == farsens_pen:
             return SenseidFarsensTag(epc=epc, user_mem_hex=tag_report.user_mem)
-        if self._epc_starts_with(epc, bytes(SENSEID_LEGACY_DEF.pen_header)):
+
+        # SenseID Rain and SenseID Legacy share the same PEN header
+        # ([00 00 00 F1 D3]). They differ at byte 6 — Legacy carries
+        # epc_family_marker (0xFF) there, regular SenseID carries fw_version.
+        legacy_pen = bytes(SENSEID_LEGACY_DEF.pen_header)
+        legacy_marker_offset = len(legacy_pen) + 1
+        if (epc_bytes[:len(legacy_pen)] == legacy_pen
+                and len(epc_bytes) > legacy_marker_offset
+                and epc_bytes[legacy_marker_offset] == SENSEID_LEGACY_DEF.epc_family_marker):
             return SenseidLegacyTag(epc=epc, user_mem_hex=tag_report.user_mem)
+
         return SenseidRainTag(epc=epc)
 
     def _driver_notification_callback(self, tag_report: ZebraLlrpTagReport):

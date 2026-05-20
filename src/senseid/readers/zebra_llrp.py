@@ -41,6 +41,9 @@ class SenseidZebraLlrp(SenseidReader):
         self.driver.set_antenna_config([1])
         # Set SenseID compatible RF mode (M4, dense reader)
         self.driver.set_rf_mode(FX9600RfMode.M4_BLF256_T25_P15)
+        # Session S1 — inventoried flag reverts to A after ~500 ms so the
+        # same tag keeps being re-singulated without alternating target.
+        self.driver.set_session(1)
         # Trext bit-5 injection — required on FX firmware to read SenseID
         # tags. Restored to sllurp default when disconnecting (see
         # zebra_llrp.ZebraLlrp.disconnect) so other drivers aren't affected.

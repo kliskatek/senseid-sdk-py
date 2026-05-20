@@ -45,19 +45,35 @@ class SenseidReaderRedRcp(SenseidReader):
         return True
 
     @staticmethod
-    def _epc_starts_with(epc_hex: str, prefix: bytes) -> bool:
+    def _epc_bytes(epc_hex: str) -> bytes:
         try:
-            epc_bytes = bytes.fromhex(epc_hex)
+            return bytes.fromhex(epc_hex)
         except (ValueError, TypeError):
-            return False
-        return epc_bytes[:len(prefix)] == prefix
+            return b''
+
+    @staticmethod
+    def _is_farsens_epc(epc_bytes: bytes) -> bool:
+        pen = bytes(SENSEID_FARSENS_DEF.pen_header)
+        return epc_bytes[:len(pen)] == pen
+
+    @staticmethod
+    def _is_legacy_epc(epc_bytes: bytes) -> bool:
+        # SenseID Rain and SenseID Legacy share the same PEN header. They
+        # differ at byte 6 — Legacy carries epc_family_marker (0xFF), regular
+        # SenseID carries fw_version.
+        pen = bytes(SENSEID_LEGACY_DEF.pen_header)
+        marker_offset = len(pen) + 1
+        return (epc_bytes[:len(pen)] == pen
+                and len(epc_bytes) > marker_offset
+                and epc_bytes[marker_offset] == SENSEID_LEGACY_DEF.epc_family_marker)
 
     def _emit_tag(self, epc_hex: str, user_mem_hex: Optional[str]):
         if self.notification_callback is None:
             return
-        if self._epc_starts_with(epc_hex, bytes(SENSEID_FARSENS_DEF.pen_header)):
+        epc_bytes = self._epc_bytes(epc_hex)
+        if self._is_farsens_epc(epc_bytes):
             tag = SenseidFarsensTag(epc=epc_hex, user_mem_hex=user_mem_hex)
-        elif self._epc_starts_with(epc_hex, bytes(SENSEID_LEGACY_DEF.pen_header)):
+        elif self._is_legacy_epc(epc_bytes):
             tag = SenseidLegacyTag(epc=epc_hex, user_mem_hex=user_mem_hex)
         else:
             tag = SenseidRainTag(epc=epc_hex)
@@ -121,8 +137,8 @@ class SenseidReaderRedRcp(SenseidReader):
         return None
 
     def _is_legacy_or_farsens(self, epc_hex: str) -> bool:
-        return (self._epc_starts_with(epc_hex, bytes(SENSEID_LEGACY_DEF.pen_header))
-                or self._epc_starts_with(epc_hex, bytes(SENSEID_FARSENS_DEF.pen_header)))
+        epc_bytes = self._epc_bytes(epc_hex)
+        return self._is_farsens_epc(epc_bytes) or self._is_legacy_epc(epc_bytes)
 
     def _legacy_loop(self):
         """Rotating operations: [inventory, read sensor_1, read sensor_2, …]

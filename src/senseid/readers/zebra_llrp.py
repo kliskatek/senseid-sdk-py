@@ -44,6 +44,10 @@ class SenseidZebraLlrp(SenseidReader):
         # Session S1 — inventoried flag reverts to A after ~500 ms so the
         # same tag keeps being re-singulated without alternating target.
         self.driver.set_session(1)
+        # Dual-target inventory via Motorola custom param
+        # MotoAntennaQueryConfig.EnableABFlip — the reader alternates
+        # Target A/B between inventory rounds.
+        self.driver.set_dual_target(True)
         # Trext bit-5 injection — required on FX firmware to read SenseID
         # tags. Restored to sllurp default when disconnecting (see
         # zebra_llrp.ZebraLlrp.disconnect) so other drivers aren't affected.

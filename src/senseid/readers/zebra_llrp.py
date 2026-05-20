@@ -2,7 +2,7 @@ import logging
 import time
 from typing import List, Callable, Optional
 
-from zebra_llrp import ZebraLlrp, ZebraLlrpTagReport, FX9600RfMode
+from zebra_llrp import ZebraLlrp, ZebraLlrpTagReport, FX9600RfMode, FX7500RfMode
 
 from . import SenseidReader, SenseidReaderDetails, SenseidReaderError, SenseidReaderMode
 from ..parsers import SenseidTag
@@ -39,8 +39,15 @@ class SenseidZebraLlrp(SenseidReader):
         self.driver.set_tx_power(0)
         # Enable first antenna
         self.driver.set_antenna_config([1])
-        # Set SenseID compatible RF mode (M4, dense reader)
-        self.driver.set_rf_mode(FX9600RfMode.M4_BLF256_T25_P15)
+        # Set SenseID compatible RF mode (M4, dense reader). The numeric
+        # mode_id differs between FX9600 (15) and FX7500 (17) even though
+        # the underlying RF profile (M4 / BLF 256 kHz / Tari 25 µs / PIE 1.5)
+        # is the same — pick the right enum per model.
+        model = self.details.model_name if self.details else ''
+        if 'FX7500' in model:
+            self.driver.set_rf_mode(FX7500RfMode.M4_BLF256_T25_P15)
+        else:
+            self.driver.set_rf_mode(FX9600RfMode.M4_BLF256_T25_P15)
         # Session S1 — inventoried flag reverts to A after ~500 ms so the
         # same tag keeps being re-singulated without alternating target.
         self.driver.set_session(1)

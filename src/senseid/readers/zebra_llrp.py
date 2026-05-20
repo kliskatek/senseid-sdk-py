@@ -4,8 +4,12 @@ from typing import List, Callable, Optional
 
 from zebra_llrp import ZebraLlrp, ZebraLlrpTagReport, FX9600RfMode
 
-from . import SenseidReader, SenseidReaderDetails, SenseidReaderError
+from . import SenseidReader, SenseidReaderDetails, SenseidReaderError, SenseidReaderMode
 from ..parsers import SenseidTag
+from ..parsers.farsens import SenseidFarsensTag
+from ..parsers.farsens.yaml import SENSEID_FARSENS_DEF
+from ..parsers.legacy import SenseidLegacyTag
+from ..parsers.legacy.yaml import SENSEID_LEGACY_DEF
 from ..parsers.rain import SenseidRainTag
 
 logger = logging.getLogger(__name__)
@@ -18,6 +22,7 @@ class SenseidZebraLlrp(SenseidReader):
         self.notification_callback = None
         self.error_callback = None
         self.details = None
+        self._mode: SenseidReaderMode = SenseidReaderMode.SENSEID
 
     def connect(self, connection_string: str):
         if not self.driver.connect(ip=connection_string):
@@ -39,9 +44,25 @@ class SenseidZebraLlrp(SenseidReader):
         self.driver.set_trext(True)
         return True
 
+    @staticmethod
+    def _epc_starts_with(epc_hex: str, prefix: bytes) -> bool:
+        try:
+            epc_bytes = bytes.fromhex(epc_hex)
+        except (ValueError, TypeError):
+            return False
+        return epc_bytes[:len(prefix)] == prefix
+
+    def _build_tag(self, tag_report: ZebraLlrpTagReport) -> SenseidTag:
+        epc = tag_report.epc
+        if self._epc_starts_with(epc, bytes(SENSEID_FARSENS_DEF.pen_header)):
+            return SenseidFarsensTag(epc=epc, user_mem_hex=tag_report.user_mem)
+        if self._epc_starts_with(epc, bytes(SENSEID_LEGACY_DEF.pen_header)):
+            return SenseidLegacyTag(epc=epc, user_mem_hex=tag_report.user_mem)
+        return SenseidRainTag(epc=epc)
+
     def _driver_notification_callback(self, tag_report: ZebraLlrpTagReport):
         if self.notification_callback is not None:
-            self.notification_callback(SenseidRainTag(epc=tag_report.epc))
+            self.notification_callback(self._build_tag(tag_report))
 
     def disconnect(self):
         self.driver.disconnect()
@@ -93,6 +114,29 @@ class SenseidZebraLlrp(SenseidReader):
             logger.warning('At least one antenna needs to be active. Enabling antenna 1.')
         active_ports = [idx + 1 for idx, enabled in enumerate(antenna_config_array) if enabled]
         self.driver.set_antenna_config(active_ports)
+
+    def get_supported_modes(self) -> List[SenseidReaderMode]:
+        return [SenseidReaderMode.SENSEID, SenseidReaderMode.LEGACY]
+
+    def get_mode(self) -> SenseidReaderMode:
+        return self._mode
+
+    def set_mode(self, mode: SenseidReaderMode):
+        super().set_mode(mode)
+        self._mode = mode
+        if mode == SenseidReaderMode.LEGACY:
+            word_count = max(SENSEID_LEGACY_DEF.word_count,
+                             SENSEID_FARSENS_DEF.word_count)
+            reads = [{
+                'memoryBank': SENSEID_LEGACY_DEF.memory_bank.value,
+                'wordOffset': SENSEID_LEGACY_DEF.word_offset,
+                'wordCount': word_count,
+            }]
+            self.driver.set_tag_memory_reads(reads)
+            logger.info('Reader mode set to LEGACY (tagMemoryReads=%s)', reads)
+        else:
+            self.driver.set_tag_memory_reads(None)
+            logger.info('Reader mode set to %s (no embedded memory reads)', mode.value)
 
     def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None],
                               error_callback: Optional[Callable[['SenseidReaderError'], None]] = None):

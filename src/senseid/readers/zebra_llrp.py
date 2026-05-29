@@ -8,7 +8,7 @@ from . import SenseidReader, SenseidReaderDetails, SenseidReaderError, SenseidRe
 from ..parsers import SenseidTag
 from ..parsers.farsens import SenseidFarsensTag
 from ..parsers.farsens.yaml import SENSEID_FARSENS_DEF
-from ..parsers.legacy import SenseidLegacyTag
+from ..parsers.legacy import SenseidLegacyTag, is_senseid_legacy_epc
 from ..parsers.legacy.yaml import SENSEID_LEGACY_DEF
 from ..parsers.rain import SenseidRainTag
 
@@ -77,13 +77,9 @@ class SenseidZebraLlrp(SenseidReader):
             return SenseidFarsensTag(epc=epc, user_mem_hex=tag_report.user_mem)
 
         # SenseID Rain and SenseID Legacy share the same PEN header
-        # ([00 00 00 F1 D3]). They differ at byte 6 — Legacy carries
-        # epc_family_marker (0xFF) there, regular SenseID carries fw_version.
-        legacy_pen = bytes(SENSEID_LEGACY_DEF.pen_header)
-        legacy_marker_offset = len(legacy_pen) + 1
-        if (epc_bytes[:len(legacy_pen)] == legacy_pen
-                and len(epc_bytes) > legacy_marker_offset
-                and epc_bytes[legacy_marker_offset] == SENSEID_LEGACY_DEF.epc_family_marker):
+        # ([00 00 00 F1 D3]). They are told apart by the type byte: each
+        # legacy product has its own type id in SENSEID_LEGACY_DEF.types.
+        if is_senseid_legacy_epc(epc_bytes):
             return SenseidLegacyTag(epc=epc, user_mem_hex=tag_report.user_mem)
 
         return SenseidRainTag(epc=epc)

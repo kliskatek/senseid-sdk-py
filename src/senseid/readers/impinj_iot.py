@@ -7,7 +7,7 @@ from . import SenseidReader, SenseidReaderDetails, SenseidReaderError, SenseidRe
 from ..parsers import SenseidTag
 from ..parsers.farsens import SenseidFarsensTag
 from ..parsers.farsens.yaml import SENSEID_FARSENS_DEF
-from ..parsers.legacy import SenseidLegacyTag
+from ..parsers.legacy import SenseidLegacyTag, is_senseid_legacy_epc
 from ..parsers.legacy.yaml import SENSEID_LEGACY_DEF
 from ..parsers.rain import SenseidRainTag
 
@@ -60,11 +60,7 @@ class SenseidImpinjIot(SenseidReader):
         if epc_bytes[:len(farsens_pen)] == farsens_pen:
             return SenseidFarsensTag(epc=epc_hex, user_mem_hex=tag_report.user_mem)
 
-        legacy_pen = bytes(SENSEID_LEGACY_DEF.pen_header)
-        marker_offset = len(legacy_pen) + 1
-        if (len(epc_bytes) > marker_offset
-                and epc_bytes[:len(legacy_pen)] == legacy_pen
-                and epc_bytes[marker_offset] == SENSEID_LEGACY_DEF.epc_family_marker):
+        if is_senseid_legacy_epc(epc_bytes):
             return SenseidLegacyTag(epc=epc_hex, user_mem_hex=tag_report.user_mem)
 
         return SenseidRainTag(epc=epc_hex)

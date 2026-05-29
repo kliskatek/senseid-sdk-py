@@ -8,7 +8,7 @@ from redrcp import RedRcp, NotificationTpeCuiii, NotificationTpeCuiiiRssi, Notif
 from ..parsers import SenseidTag
 from ..parsers.farsens import SenseidFarsensTag
 from ..parsers.farsens.yaml import SENSEID_FARSENS_DEF
-from ..parsers.legacy import SenseidLegacyTag
+from ..parsers.legacy import SenseidLegacyTag, is_senseid_legacy_epc
 from ..parsers.legacy.yaml import SENSEID_LEGACY_DEF
 from ..parsers.rain import SenseidRainTag
 from ..readers import SenseidReader, SenseidReaderDetails, SenseidReaderMode
@@ -59,13 +59,9 @@ class SenseidReaderRedRcp(SenseidReader):
     @staticmethod
     def _is_legacy_epc(epc_bytes: bytes) -> bool:
         # SenseID Rain and SenseID Legacy share the same PEN header. They
-        # differ at byte 6 — Legacy carries epc_family_marker (0xFF), regular
-        # SenseID carries fw_version.
-        pen = bytes(SENSEID_LEGACY_DEF.pen_header)
-        marker_offset = len(pen) + 1
-        return (epc_bytes[:len(pen)] == pen
-                and len(epc_bytes) > marker_offset
-                and epc_bytes[marker_offset] == SENSEID_LEGACY_DEF.epc_family_marker)
+        # are told apart by the type byte: each legacy product has its own
+        # type id in SENSEID_LEGACY_DEF.types.
+        return is_senseid_legacy_epc(epc_bytes)
 
     def _emit_tag(self, epc_hex: str, user_mem_hex: Optional[str]):
         if self.notification_callback is None:

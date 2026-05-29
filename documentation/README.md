@@ -87,8 +87,8 @@ sources. The set of supported modes depends on the reader; query it with
 In `LEGACY` mode the wrapper dispatches each inventory event to the right
 parser based on the EPC:
 
-- EPC starts with `00 00 00 F1 D3` and byte 6 ∈ `0x01..0xFE` → `SenseidRainTag` (standard SenseID).
-- EPC starts with `00 00 00 F1 D3` and byte 6 == `0xFF` → `SenseidLegacyTag` (Kliskatek legacy, EVAL-LEGACY-* line).
+- EPC starts with `00 00 00 F1 D3` and byte 6 == `0xFF` (family marker) → `SenseidLegacyTag` (Kliskatek legacy, EVAL-LEGACY-* line).
+- EPC starts with `00 00 00 F1 D3` and byte 6 ∈ `0x00..0xFE` (a real fw_version) → `SenseidRainTag` (standard SenseID). The type byte (byte 5) uses the same numbering for both families (e.g. `0x05` = RHAT).
 - EPC starts with `00 00 00 A9 3C` → `SenseidFarsensTag` (Farsens RM family: Fenix-RM, Hygro-Fenix-RM, Kineo-RM, Magneto-RM, Cyclon-RM, …).
 - Anything else → `SenseidRainTag` as a generic "Rain ID".
 
@@ -107,10 +107,13 @@ Parses a standard SenseID RAIN EPC. Rejects legacy-family EPCs
 
 #### `SenseidLegacyTag(epc, user_mem_hex=None)`
 
-Parses a Kliskatek legacy tag. The EPC follows the SenseID layout but byte
-6 is fixed to `0xFF` (family marker). The actual sensor payload comes from
-the User-memory blob (`user_mem_hex`); when omitted, the parser still
-populates `id`, `name`, `sn`, etc., and leaves `data = None`.
+Parses a Kliskatek legacy tag. The EPC layout is
+`PEN(5) + type(1) + epc_family_marker(1, 0xFF) + SN(5 B, big-endian)` = 12
+bytes; the `type` byte uses the same numbering as standard SenseID (e.g.
+`0x05` for RHAT) and byte 6 == `0xFF` marks the tag as legacy. The actual
+sensor payload comes from the User-memory blob (`user_mem_hex`); when
+omitted, the parser still populates `id`, `name`, `sn`, etc., and leaves
+`data = None`.
 
 #### `SenseidFarsensTag(epc, user_mem_hex=None)`
 

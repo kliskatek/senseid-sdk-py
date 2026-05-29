@@ -31,8 +31,9 @@ class SenseidRainTag(SenseidTag):
                 raise TypeError('epc must be a hex string or bytearray')
         return epc
 
-    # Reserved fw_version value that marks a tag as belonging to the
-    # SenseID legacy family (sensor data in User memory instead of EPC).
+    # Reserved fw_version value (byte 6) that marks a tag as belonging to the
+    # SenseID legacy family (sensor data in User memory instead of EPC). Legacy
+    # tags share our PEN and type numbering, so byte 6 is the only discriminator.
     # See senseid_legacy.yaml :: epc_family_marker.
     _LEGACY_FAMILY_MARKER = 0xFF
 
@@ -42,9 +43,9 @@ class SenseidRainTag(SenseidTag):
             return False
         if len(epc_bytes) < len(SENSEID_RAIN_DEF.pen_header) + 2 + 3:  # PEN + TYPE + SN
             return False
-        # Legacy-family EPCs share our PEN but byte 6 = 0xFF instead of a
-        # real fw_version — they are not standard SenseID and must not be
-        # decoded as such.
+        # Legacy-family EPCs share our PEN and type numbering but carry 0xFF at
+        # byte 6 instead of a real fw_version — they are decoded by the legacy
+        # parser (sensor data lives in User memory), not here.
         if epc_bytes[len(SENSEID_RAIN_DEF.pen_header) + 1] == self._LEGACY_FAMILY_MARKER:
             return False
         return True
@@ -59,7 +60,10 @@ class SenseidRainTag(SenseidTag):
         sn = struct.unpack('>I', bytearray([0]) + senseid_sn_bytes)[0]
         senseid_type = struct.unpack('B', senseid_type_bytes)[0]
         if senseid_type not in SENSEID_RAIN_DEF.types:
-            self.id = id
+            # Don't truncate the id for unknown types: we don't know where the
+            # "identity" ends, so showing the full EPC helps debugging
+            # (e.g. catching a new product family before its YAML entry exists).
+            self.id = epc_bytes.hex().upper()
             self.fw_version = None
             self.sn = None
             self.name = 'Unknown SenseID type'
@@ -113,10 +117,6 @@ class SenseidRainTag(SenseidTag):
                                         value=value))
             self.data = data
         except Exception:
-            # EPC is recognised as SenseID type but the payload does not match
-            # the data_def (e.g. a legacy tag whose EPC carries no sensor data
-            # because the sensor lives in User memory). Keep the tag visible
-            # with id/name/sn but leave data empty.
             logger.debug('Could not parse sensor data from EPC for type 0x%02X', senseid_type)
             self.data = None
 

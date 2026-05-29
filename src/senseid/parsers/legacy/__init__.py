@@ -13,12 +13,42 @@ from .. import SenseidData, SenseidTag, SenseidTechnologies
 logger = logging.getLogger(__name__)
 
 
+def is_senseid_legacy_epc(epc_bytes: bytes | bytearray) -> bool:
+    """Return True if ``epc_bytes`` looks like a Kliskatek legacy tag.
+
+    Legacy tags share the SenseID PEN header AND type numbering with standard
+    SenseID tags (e.g. 0x05 = RHAT for both). They are told apart by the family
+    marker at byte 6 (the epc_version position): a legacy tag carries
+    ``SENSEID_LEGACY_DEF.epc_family_marker`` (0xFF) there, while a standard
+    SenseID tag carries a real fw_version. The real firmware version of a legacy
+    tag lives in the User-memory datagram instead.
+    """
+    if epc_bytes is None:
+        return False
+    pen = SENSEID_LEGACY_DEF.pen_header
+    marker_offset = len(pen) + 1  # byte 6
+    if len(epc_bytes) <= marker_offset:
+        return False
+    if epc_bytes[0:len(pen)] != pen:
+        return False
+    return epc_bytes[marker_offset] == SENSEID_LEGACY_DEF.epc_family_marker
+
+
 @dataclass_json
 @dataclass
 class SenseidLegacyTag(SenseidTag):
     """RAIN tag whose sensor payload lives in User memory (Kliskatek legacy
-    Rocky100-based tags). EPC is SenseID-style; data is decoded from the
-    `user_mem_hex` blob obtained via inventory + embedded Read on USER bank.
+    Rocky100-based tags). EPC layout::
+
+        bytes 0-4  : PEN header (00 00 00 F1 D3)
+        byte  5    : type (same numbering as senseid_rain.yaml, e.g. 0x05 = RHAT)
+        byte  6    : epc_family_marker (0xFF — marks the tag as legacy; standard
+                     SenseID carries a real fw_version here; real legacy
+                     fw_version lives in the User-memory datagram)
+        bytes 7-11 : SN (5 bytes, big-endian)
+
+    Sensor data is decoded from the ``user_mem_hex`` blob obtained via
+    inventory + embedded Read on the USER bank.
     """
 
     def __init__(self, epc: str | bytearray, user_mem_hex: Optional[str | bytearray] = None):
@@ -41,16 +71,13 @@ class SenseidLegacyTag(SenseidTag):
         logger.debug('Unsupported value type for legacy parse: %s', type(value).__name__)
         return None
 
-    def _is_senseid_epc(self, epc_bytes: bytearray) -> bool:
+    def _is_legacy_epc(self, epc_bytes: bytearray) -> bool:
+        # Full 12-byte check: PEN + type known + length enough for version + 5 B SN.
+        if not is_senseid_legacy_epc(epc_bytes):
+            return False
         header_len = len(SENSEID_LEGACY_DEF.pen_header)
-        if epc_bytes[0:header_len] != SENSEID_LEGACY_DEF.pen_header:
-            return False
-        # Legacy EPC layout: PEN(5) + type(1) + family_marker(1) + SN(5) = 12 B
-        if len(epc_bytes) < header_len + 1 + 1 + 5:
-            return False
-        if epc_bytes[header_len + 1] != SENSEID_LEGACY_DEF.epc_family_marker:
-            return False
-        return True
+        # PEN(5) + type(1) + version(1) + SN(5) = 12 bytes
+        return len(epc_bytes) >= header_len + 1 + 1 + 5
 
     def _decode_user_mem(self, type_config, user_mem: bytearray):
         """Decode sensor values from the User-memory datagram.
@@ -127,7 +154,7 @@ class SenseidLegacyTag(SenseidTag):
             return
         self.id = epc_bytes.hex().upper()
 
-        if not self._is_senseid_epc(epc_bytes):
+        if not self._is_legacy_epc(epc_bytes):
             self.name = 'Rain ID'
             self.description = 'Standard Rain ID tag'
             self.datasheet_url = None
@@ -136,6 +163,9 @@ class SenseidLegacyTag(SenseidTag):
             return
 
         senseid_type = epc_bytes[5]
+        # byte 6 is the family marker (0xFF), already checked in
+        # is_senseid_legacy_epc. The real fw_version lives in the User-memory
+        # datagram, not the EPC.
         self.sn = int.from_bytes(epc_bytes[7:12], 'big')
         self.id = epc_bytes[0:12].hex().upper()
         type_config = SENSEID_LEGACY_DEF.types.get(senseid_type)

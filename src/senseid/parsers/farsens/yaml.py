@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 import yaml
 from dataclasses_json import dataclass_json
 
-from ..legacy.yaml import SenseidMemoryBank
+from ..senseread.yaml import SenseidMemoryBank
 from ..rain.yaml import SenseidTransformType, SenseidValueType
 
 

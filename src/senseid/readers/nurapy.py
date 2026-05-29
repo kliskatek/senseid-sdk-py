@@ -12,7 +12,7 @@ from . import SenseidReader, SenseidReaderDetails, SenseidReaderError, SenseidRe
 from ..parsers import SenseidTag
 from ..parsers.farsens import SenseidFarsensTag
 from ..parsers.farsens.yaml import SENSEID_FARSENS_DEF
-from ..parsers.legacy import SenseidLegacyTag, is_senseid_legacy_epc
+from ..parsers.senseread import SenseidSenseReadTag, is_senseid_senseread_epc
 from ..parsers.rain import SenseidRainTag
 
 logger = logging.getLogger(__name__)
@@ -84,8 +84,8 @@ class SenseidNurapy(SenseidReader):
         if epc_bytes[:len(farsens_pen)] == farsens_pen:
             return SenseidFarsensTag(epc=epc_hex, user_mem_hex=user_mem_hex)
 
-        if is_senseid_legacy_epc(epc_bytes):
-            return SenseidLegacyTag(epc=epc_hex, user_mem_hex=user_mem_hex)
+        if is_senseid_senseread_epc(epc_bytes):
+            return SenseidSenseReadTag(epc=epc_hex, user_mem_hex=user_mem_hex)
 
         return SenseidRainTag(epc=epc_hex)
 
@@ -170,7 +170,7 @@ class SenseidNurapy(SenseidReader):
                                      module_setup=module_setup)
 
     def get_supported_modes(self) -> List[SenseidReaderMode]:
-        return [SenseidReaderMode.SENSEID, SenseidReaderMode.LEGACY]
+        return [SenseidReaderMode.SENSEID, SenseidReaderMode.SENSEREAD]
 
     def get_mode(self) -> SenseidReaderMode:
         return self._mode
@@ -178,17 +178,17 @@ class SenseidNurapy(SenseidReader):
     def set_mode(self, mode: SenseidReaderMode):
         super().set_mode(mode)
         self._mode = mode
-        if mode == SenseidReaderMode.LEGACY:
+        if mode == SenseidReaderMode.SENSEREAD:
             # Embedded user-mem read on every inventoried tag.
             # NUR firmware uses NUR_CMD_INVENTORYREAD (0x41) for this — the
             # similarly-named INVREADCONFIG (0x23) is rejected as
             # INVALID_COMMAND on this module class.
-            word_count = max(SENSEID_LEGACY_DEF.word_count,
+            word_count = max(SENSEID_SENSEREAD_DEF.word_count,
                              SENSEID_FARSENS_DEF.word_count)
             self.driver.set_inventory_read_config(
                 active=True,
                 bank=IrBank.USER,
-                word_address=SENSEID_LEGACY_DEF.word_offset,
+                word_address=SENSEID_SENSEREAD_DEF.word_offset,
                 word_length=word_count,
                 ir_type=IrType.EPC_AND_DATA,
             )
@@ -201,8 +201,8 @@ class SenseidNurapy(SenseidReader):
             self.driver.set_module_setup(setup_flags=[ModuleSetupFlags.INVSESSION,
                                                       ModuleSetupFlags.INVTARGET],
                                          module_setup=setup)
-            logger.info('Reader mode set to LEGACY (USER@0x%X, %d words, session=1, target=AB)',
-                        SENSEID_LEGACY_DEF.word_offset, word_count)
+            logger.info('Reader mode set to SENSEREAD (USER@0x%X, %d words, session=1, target=AB)',
+                        SENSEID_SENSEREAD_DEF.word_offset, word_count)
         else:
             self.driver.set_inventory_read_config(active=False)
             logger.info('Reader mode set to %s (no embedded memory reads)',

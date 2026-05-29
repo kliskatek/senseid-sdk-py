@@ -18,7 +18,7 @@ class SenseidMemoryBank(Enum):
 
 @dataclass_json
 @dataclass
-class SenseidLegacyDataDef:
+class SenseidSenseReadDataDef:
     magnitude: str
     magnitude_short: str
     unit_long: str
@@ -31,10 +31,10 @@ class SenseidLegacyDataDef:
 
 @dataclass_json
 @dataclass
-class SenseidLegacyTypeDef:
+class SenseidSenseReadTypeDef:
     name: str
     description: str
-    data_def: List[SenseidLegacyDataDef]
+    data_def: List[SenseidSenseReadDataDef]
     fw_versions: List[int]
     datasheet_url: Optional[str] = field(default=None)
     store_url: Optional[str] = field(default=None)
@@ -42,13 +42,13 @@ class SenseidLegacyTypeDef:
 
 @dataclass_json
 @dataclass
-class SenseidLegacySkipWhen:
+class SenseidSenseReadSkipWhen:
     fw_version: List[int] = field(default_factory=list)
 
 
 @dataclass_json
 @dataclass
-class SenseidLegacyDef:
+class SenseidSenseReadDef:
     version: int
     date: datetime.date
     pen_header: bytearray
@@ -56,8 +56,8 @@ class SenseidLegacyDef:
     memory_bank: SenseidMemoryBank
     word_offset: int
     word_count: int
-    types: Dict[int, SenseidLegacyTypeDef]
-    skip_when: SenseidLegacySkipWhen = field(default_factory=SenseidLegacySkipWhen)
+    types: Dict[int, SenseidSenseReadTypeDef]
+    skip_when: SenseidSenseReadSkipWhen = field(default_factory=SenseidSenseReadSkipWhen)
 
 
 top_package = __name__.split('.')[0]
@@ -65,6 +65,6 @@ if top_package == 'src':
     senseid_package = files('src.senseid')
 else:
     senseid_package = files('senseid')
-_senseid_yaml = senseid_package.joinpath('definitions').joinpath('senseid_legacy.yaml').read_text()
+_senseid_yaml = senseid_package.joinpath('definitions').joinpath('senseid_senseread.yaml').read_text()
 _senseid_dict = yaml.safe_load(_senseid_yaml)
-SENSEID_LEGACY_DEF: SenseidLegacyDef = SenseidLegacyDef.from_dict(_senseid_dict)
+SENSEID_SENSEREAD_DEF: SenseidSenseReadDef = SenseidSenseReadDef.from_dict(_senseid_dict)

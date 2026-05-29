@@ -8,7 +8,7 @@ Python SDK for SenseID smart sensor tags. Parse sensor data from RAIN RFID, BLE,
 ## Features
 
 - **Multi-technology parsing**: Decode SenseID sensor data from RAIN (UHF RFID), BLE beacons, and NFC tags
-- **Legacy + Farsens RAIN families**: Read tags whose sensor data lives in User memory (Kliskatek legacy, Farsens RM family) through a single LEGACY reader mode
+- **SenseRead + Farsens RAIN families**: Read tags whose sensor data lives in User memory (Kliskatek senseRead, Farsens RM family) through a single SENSEREAD reader mode
 - **Unified reader interface**: Control different RFID/NFC readers through a single API
 - **Auto-discovery**: Scan for supported readers via serial port, mDNS, and PC/SC
 - **YAML-driven definitions**: Tag types and sensor calibration defined in YAML files
@@ -81,19 +81,19 @@ sources. The set of supported modes depends on the reader; query it with
 | Mode | Supported on | What it does |
 |------|--------------|--------------|
 | `SENSEID` | RAIN readers | Inventory only. Sensor data is decoded from the EPC (standard SenseID family). |
-| `LEGACY` | Impinj R700 (today) | Inventory + embedded Read on User memory (USER@`0x100`, 6 words). Adds support for Kliskatek legacy and Farsens tags whose sensor payload lives outside the EPC. Standard SenseID tags keep working in this mode too. |
+| `SENSEREAD` | Impinj R700 (today) | Inventory + embedded Read on User memory (USER@`0x100`, 6 words). Adds support for Kliskatek senseRead and Farsens tags whose sensor payload lives outside the EPC. Standard SenseID tags keep working in this mode too. |
 | `NDEF` / `BULK` | ACR1552 (NFC) | NDEF read vs. block-bulk read of the tag. |
 
-In `LEGACY` mode the wrapper dispatches each inventory event to the right
+In `SENSEREAD` mode the wrapper dispatches each inventory event to the right
 parser based on the EPC:
 
-- EPC starts with `00 00 00 F1 D3` and byte 6 == `0xFF` (family marker) → `SenseidLegacyTag` (Kliskatek legacy, EVAL-LEGACY-* line).
+- EPC starts with `00 00 00 F1 D3` and byte 6 == `0xFF` (family marker) → `SenseidSenseReadTag` (Kliskatek senseRead, EVAL-SREAD-* line).
 - EPC starts with `00 00 00 F1 D3` and byte 6 ∈ `0x00..0xFE` (a real fw_version) → `SenseidRainTag` (standard SenseID). The type byte (byte 5) uses the same numbering for both families (e.g. `0x05` = RHAT).
 - EPC starts with `00 00 00 A9 3C` → `SenseidFarsensTag` (Farsens RM family: Fenix-RM, Hygro-Fenix-RM, Kineo-RM, Magneto-RM, Cyclon-RM, …).
 - Anything else → `SenseidRainTag` as a generic "Rain ID".
 
 The same dispatch is performed in `SENSEID` mode; the only difference is
-that without an embedded Read the legacy / Farsens parsers leave
+that without an embedded Read the senseRead / Farsens parsers leave
 `tag.data = None` (the tag is still reported with its correct name and SN).
 
 ## API Reference
@@ -102,15 +102,15 @@ that without an embedded Read the legacy / Farsens parsers leave
 
 #### `SenseidRainTag(epc: str | bytearray)`
 
-Parses a standard SenseID RAIN EPC. Rejects legacy-family EPCs
-(byte 6 == `0xFF`) so they fall through to `SenseidLegacyTag`.
+Parses a standard SenseID RAIN EPC. Rejects senseRead-family EPCs
+(byte 6 == `0xFF`) so they fall through to `SenseidSenseReadTag`.
 
-#### `SenseidLegacyTag(epc, user_mem_hex=None)`
+#### `SenseidSenseReadTag(epc, user_mem_hex=None)`
 
-Parses a Kliskatek legacy tag. The EPC layout is
+Parses a Kliskatek senseRead tag. The EPC layout is
 `PEN(5) + type(1) + epc_family_marker(1, 0xFF) + SN(5 B, big-endian)` = 12
 bytes; the `type` byte uses the same numbering as standard SenseID (e.g.
-`0x05` for RHAT) and byte 6 == `0xFF` marks the tag as legacy. The actual
+`0x05` for RHAT) and byte 6 == `0xFF` marks the tag as senseRead. The actual
 sensor payload comes from the User-memory blob (`user_mem_hex`); when
 omitted, the parser still populates `id`, `name`, `sn`, etc., and leaves
 `data = None`.
@@ -173,7 +173,7 @@ Parses NFC NDEF data into a `SenseidTag`.
 | `get_details()` | Returns model, region, firmware, antenna count, power limits, and `technology` (RAIN/BLE/NFC) |
 | `get_tx_power()` / `set_tx_power(dbm)` | Get/set TX power in dBm |
 | `get_antenna_config()` / `set_antenna_config(list[bool])` | Get/set active antennas |
-| `get_supported_modes()` / `get_mode()` / `set_mode(mode)` | Query / change the operating mode (`SENSEID`, `LEGACY`, …) |
+| `get_supported_modes()` / `get_mode()` / `set_mode(mode)` | Query / change the operating mode (`SENSEID`, `SENSEREAD`, …) |
 | `start_inventory_async(callback)` | Start inventory with tag notification callback |
 | `stop_inventory_async()` | Stop inventory |
 

@@ -1,8 +1,8 @@
-"""Quick smoke test for NURAPY LEGACY mode in the SenseID SDK.
+"""Quick smoke test for NURAPY SENSEREAD mode in the SenseID SDK.
 
-Connects to the NUR on COM6, switches to LEGACY mode (embedded user-mem
+Connects to the NUR on COM6, switches to SENSEREAD mode (embedded user-mem
 read via NUR_CMD_INVENTORYREAD 0x41), runs inventory for ~8s and prints
-the parsed tags. Both Kliskatek legacy (PEN F1D3 + 0xFF marker) and
+the parsed tags. Both Kliskatek senseRead (PEN F1D3 + 0xFF marker) and
 Farsens (PEN A93C) families are dispatched to their respective parsers.
 """
 
@@ -24,7 +24,7 @@ connection_info = SenseidReaderConnectionInfo(
 
 reader = create_SenseidReader(connection_info)
 reader.connect(connection_info.connection_string)
-reader.set_mode(SenseidReaderMode.LEGACY)
+reader.set_mode(SenseidReaderMode.SENSEREAD)
 
 seen = {}
 
@@ -40,7 +40,7 @@ reader.stop_inventory_async()
 reader.set_mode(SenseidReaderMode.SENSEID)
 reader.disconnect()
 
-print('\nLEGACY mode summary:')
+print('\nSENSEREAD mode summary:')
 for tid, tag in seen.items():
     data = getattr(tag, 'data', None)
     print(f'  {tag.name:20s} id={tid}  data={data}')

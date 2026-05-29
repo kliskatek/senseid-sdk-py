@@ -9,8 +9,8 @@ from ..parsers import SenseidTag, SenseidTechnologies
 
 
 class SenseidReaderMode(Enum):
-    SENSEID = 'SENSEID'   # RAIN inventory only, sensor data in EPC (default SenseID family)
-    LEGACY = 'LEGACY'     # RAIN inventory + embedded User-memory read (Kliskatek legacy tags)
+    SENSEID = 'SENSEID'       # RAIN inventory only, sensor data in EPC (default SenseID family)
+    SENSEREAD = 'SENSEREAD'   # RAIN inventory + embedded User-memory read (Kliskatek senseRead tags)
     NDEF = 'NDEF'
     BULK = 'BULK'
 

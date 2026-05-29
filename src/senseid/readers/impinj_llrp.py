@@ -7,8 +7,8 @@ from . import SenseidReader, SenseidReaderDetails, SenseidReaderError, SenseidRe
 from ..parsers import SenseidTag
 from ..parsers.farsens import SenseidFarsensTag
 from ..parsers.farsens.yaml import SENSEID_FARSENS_DEF
-from ..parsers.legacy import SenseidLegacyTag, is_senseid_legacy_epc
-from ..parsers.legacy.yaml import SENSEID_LEGACY_DEF
+from ..parsers.senseread import SenseidSenseReadTag, is_senseid_senseread_epc
+from ..parsers.senseread.yaml import SENSEID_SENSEREAD_DEF
 from ..parsers.rain import SenseidRainTag
 
 logger = logging.getLogger(__name__)
@@ -45,11 +45,11 @@ class SenseidImpinjLlrp(SenseidReader):
         if epc_bytes[:len(farsens_pen)] == farsens_pen:
             return SenseidFarsensTag(epc=epc, user_mem_hex=tag_report.user_mem)
 
-        # SenseID Rain and SenseID Legacy share the same PEN header. They
-        # are told apart by the type byte: each legacy product has its own
-        # type id registered in SENSEID_LEGACY_DEF.types.
-        if is_senseid_legacy_epc(epc_bytes):
-            return SenseidLegacyTag(epc=epc, user_mem_hex=tag_report.user_mem)
+        # SenseID Rain and SenseID SenseRead share the same PEN header. They
+        # are told apart by the type byte: each senseRead product has its own
+        # type id registered in SENSEID_SENSEREAD_DEF.types.
+        if is_senseid_senseread_epc(epc_bytes):
+            return SenseidSenseReadTag(epc=epc, user_mem_hex=tag_report.user_mem)
 
         return SenseidRainTag(epc=epc)
 
@@ -101,7 +101,7 @@ class SenseidImpinjLlrp(SenseidReader):
         self.driver.set_antenna_config(active_ports)
 
     def get_supported_modes(self) -> List[SenseidReaderMode]:
-        return [SenseidReaderMode.SENSEID, SenseidReaderMode.LEGACY]
+        return [SenseidReaderMode.SENSEID, SenseidReaderMode.SENSEREAD]
 
     def get_mode(self) -> SenseidReaderMode:
         return self._mode
@@ -109,16 +109,16 @@ class SenseidImpinjLlrp(SenseidReader):
     def set_mode(self, mode: SenseidReaderMode):
         super().set_mode(mode)
         self._mode = mode
-        if mode == SenseidReaderMode.LEGACY:
-            word_count = max(SENSEID_LEGACY_DEF.word_count,
+        if mode == SenseidReaderMode.SENSEREAD:
+            word_count = max(SENSEID_SENSEREAD_DEF.word_count,
                              SENSEID_FARSENS_DEF.word_count)
             reads = [{
-                'memoryBank': SENSEID_LEGACY_DEF.memory_bank.value,
-                'wordOffset': SENSEID_LEGACY_DEF.word_offset,
+                'memoryBank': SENSEID_SENSEREAD_DEF.memory_bank.value,
+                'wordOffset': SENSEID_SENSEREAD_DEF.word_offset,
                 'wordCount': word_count,
             }]
             self.driver.set_tag_memory_reads(reads)
-            logger.info('Reader mode set to LEGACY (tagMemoryReads=%s)', reads)
+            logger.info('Reader mode set to SENSEREAD (tagMemoryReads=%s)', reads)
         else:
             self.driver.set_tag_memory_reads(None)
             logger.info('Reader mode set to %s (no embedded memory reads)', mode.value)

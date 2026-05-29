@@ -7,8 +7,8 @@ from . import SenseidReader, SenseidReaderDetails, SenseidReaderError, SenseidRe
 from ..parsers import SenseidTag
 from ..parsers.farsens import SenseidFarsensTag
 from ..parsers.farsens.yaml import SENSEID_FARSENS_DEF
-from ..parsers.legacy import SenseidLegacyTag, is_senseid_legacy_epc
-from ..parsers.legacy.yaml import SENSEID_LEGACY_DEF
+from ..parsers.senseread import SenseidSenseReadTag, is_senseid_senseread_epc
+from ..parsers.senseread.yaml import SENSEID_SENSEREAD_DEF
 from ..parsers.rain import SenseidRainTag
 
 logger = logging.getLogger(__name__)
@@ -46,9 +46,9 @@ class SenseidImpinjIot(SenseidReader):
         self.notification_callback(self._build_tag(tag_report))
 
     def _build_tag(self, tag_report: ImpinjIotTagReport) -> SenseidTag:
-        # Identify the tag family from the EPC so both SENSEID and LEGACY
+        # Identify the tag family from the EPC so both SENSEID and SENSEREAD
         # modes name the tag correctly. user_mem is only populated in
-        # LEGACY mode; in SENSEID mode the legacy/Farsens parsers still
+        # SENSEREAD mode; in SENSEID mode the senseRead/Farsens parsers still
         # recognise the model from the EPC and just leave data=None.
         epc_hex = tag_report.epc
         try:
@@ -60,8 +60,8 @@ class SenseidImpinjIot(SenseidReader):
         if epc_bytes[:len(farsens_pen)] == farsens_pen:
             return SenseidFarsensTag(epc=epc_hex, user_mem_hex=tag_report.user_mem)
 
-        if is_senseid_legacy_epc(epc_bytes):
-            return SenseidLegacyTag(epc=epc_hex, user_mem_hex=tag_report.user_mem)
+        if is_senseid_senseread_epc(epc_bytes):
+            return SenseidSenseReadTag(epc=epc_hex, user_mem_hex=tag_report.user_mem)
 
         return SenseidRainTag(epc=epc_hex)
 
@@ -108,7 +108,7 @@ class SenseidImpinjIot(SenseidReader):
         self.driver.set_antenna_config(antenna_config_array)
 
     def get_supported_modes(self) -> List[SenseidReaderMode]:
-        return [SenseidReaderMode.SENSEID, SenseidReaderMode.LEGACY]
+        return [SenseidReaderMode.SENSEID, SenseidReaderMode.SENSEREAD]
 
     def get_mode(self) -> SenseidReaderMode:
         return self._mode
@@ -116,21 +116,21 @@ class SenseidImpinjIot(SenseidReader):
     def set_mode(self, mode: SenseidReaderMode):
         super().set_mode(mode)
         self._mode = mode
-        if mode == SenseidReaderMode.LEGACY:
-            # A single embedded read serves both Kliskatek legacy tags and the
+        if mode == SenseidReaderMode.SENSEREAD:
+            # A single embedded read serves both Kliskatek senseRead tags and the
             # Farsens family; use the widest word_count across the two YAMLs so
             # every model has its full datagram in the response. Tags with
             # smaller SPI buffers just return garbage in the trailing words
             # and their parsers ignore it.
-            word_count = max(SENSEID_LEGACY_DEF.word_count,
+            word_count = max(SENSEID_SENSEREAD_DEF.word_count,
                              SENSEID_FARSENS_DEF.word_count)
             reads = [{
-                'memoryBank': SENSEID_LEGACY_DEF.memory_bank.value,
-                'wordOffset': SENSEID_LEGACY_DEF.word_offset,
+                'memoryBank': SENSEID_SENSEREAD_DEF.memory_bank.value,
+                'wordOffset': SENSEID_SENSEREAD_DEF.word_offset,
                 'wordCount': word_count,
             }]
             self.driver.set_tag_memory_reads(reads)
-            logger.info('Reader mode set to LEGACY (tagMemoryReads=%s)', reads)
+            logger.info('Reader mode set to SENSEREAD (tagMemoryReads=%s)', reads)
         else:
             self.driver.set_tag_memory_reads(None)
             logger.info('Reader mode set to %s (no embedded memory reads)', mode.value)

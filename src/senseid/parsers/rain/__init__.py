@@ -32,10 +32,10 @@ class SenseidRainTag(SenseidTag):
         return epc
 
     # Reserved fw_version value (byte 6) that marks a tag as belonging to the
-    # SenseID legacy family (sensor data in User memory instead of EPC). Legacy
-    # tags share our PEN and type numbering, so byte 6 is the only discriminator.
-    # See senseid_legacy.yaml :: epc_family_marker.
-    _LEGACY_FAMILY_MARKER = 0xFF
+    # SenseID senseRead family (sensor data in User memory instead of EPC).
+    # senseRead tags share our PEN and type numbering, so byte 6 is the only
+    # discriminator. See senseid_senseread.yaml :: epc_family_marker.
+    _SENSEREAD_FAMILY_MARKER = 0xFF
 
     def _is_senseid_epc(self, epc_bytes: bytearray):
         pen_header = epc_bytes[0:len(SENSEID_RAIN_DEF.pen_header)]
@@ -43,10 +43,10 @@ class SenseidRainTag(SenseidTag):
             return False
         if len(epc_bytes) < len(SENSEID_RAIN_DEF.pen_header) + 2 + 3:  # PEN + TYPE + SN
             return False
-        # Legacy-family EPCs share our PEN and type numbering but carry 0xFF at
-        # byte 6 instead of a real fw_version — they are decoded by the legacy
-        # parser (sensor data lives in User memory), not here.
-        if epc_bytes[len(SENSEID_RAIN_DEF.pen_header) + 1] == self._LEGACY_FAMILY_MARKER:
+        # senseRead-family EPCs share our PEN and type numbering but carry 0xFF
+        # at byte 6 instead of a real fw_version — they are decoded by the
+        # senseRead parser (sensor data lives in User memory), not here.
+        if epc_bytes[len(SENSEID_RAIN_DEF.pen_header) + 1] == self._SENSEREAD_FAMILY_MARKER:
             return False
         return True
 

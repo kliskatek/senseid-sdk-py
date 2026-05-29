@@ -8,17 +8,17 @@ from redrcp import RedRcp, NotificationTpeCuiii, NotificationTpeCuiiiRssi, Notif
 from ..parsers import SenseidTag
 from ..parsers.farsens import SenseidFarsensTag
 from ..parsers.farsens.yaml import SENSEID_FARSENS_DEF
-from ..parsers.legacy import SenseidLegacyTag, is_senseid_legacy_epc
-from ..parsers.legacy.yaml import SENSEID_LEGACY_DEF
+from ..parsers.senseread import SenseidSenseReadTag, is_senseid_senseread_epc
+from ..parsers.senseread.yaml import SENSEID_SENSEREAD_DEF
 from ..parsers.rain import SenseidRainTag
 from ..readers import SenseidReader, SenseidReaderDetails, SenseidReaderMode
 
 logger = logging.getLogger(__name__)
 
 
-LEGACY_OP_PERIOD_S = 0.1          # min interval between consecutive operations
-LEGACY_INVENTORY_WINDOW_S = 0.08  # how long the inventory op holds the air
-LEGACY_USER_WORD_PTR = 0x100
+SENSEREAD_OP_PERIOD_S = 0.1          # min interval between consecutive operations
+SENSEREAD_INVENTORY_WINDOW_S = 0.08  # how long the inventory op holds the air
+SENSEREAD_USER_WORD_PTR = 0x100
 
 
 class SenseidReaderRedRcp(SenseidReader):
@@ -28,12 +28,12 @@ class SenseidReaderRedRcp(SenseidReader):
         self.notification_callback = None
         self.details = None
         self._mode: SenseidReaderMode = SenseidReaderMode.SENSEID
-        # LEGACY loop state
-        self._legacy_thread: Optional[threading.Thread] = None
-        self._legacy_stop = threading.Event()
-        self._legacy_word_count: int = 0
-        self._legacy_seen_lock = threading.Lock()
-        self._legacy_seen: set[str] = set()
+        # SENSEREAD loop state
+        self._senseread_thread: Optional[threading.Thread] = None
+        self._senseread_stop = threading.Event()
+        self._senseread_word_count: int = 0
+        self._senseread_seen_lock = threading.Lock()
+        self._senseread_seen: set[str] = set()
 
     def connect(self, connection_string: str):
         if not self.driver.connect(connection_string=connection_string):
@@ -57,11 +57,11 @@ class SenseidReaderRedRcp(SenseidReader):
         return epc_bytes[:len(pen)] == pen
 
     @staticmethod
-    def _is_legacy_epc(epc_bytes: bytes) -> bool:
-        # SenseID Rain and SenseID Legacy share the same PEN header. They
-        # are told apart by the type byte: each legacy product has its own
-        # type id in SENSEID_LEGACY_DEF.types.
-        return is_senseid_legacy_epc(epc_bytes)
+    def _is_senseread_epc(epc_bytes: bytes) -> bool:
+        # SenseID Rain and SenseID SenseRead share the same PEN header. They
+        # are told apart by the type byte: each senseRead product has its own
+        # type id in SENSEID_SENSEREAD_DEF.types.
+        return is_senseid_senseread_epc(epc_bytes)
 
     def _emit_tag(self, epc_hex: str, user_mem_hex: Optional[str]):
         if self.notification_callback is None:
@@ -69,8 +69,8 @@ class SenseidReaderRedRcp(SenseidReader):
         epc_bytes = self._epc_bytes(epc_hex)
         if self._is_farsens_epc(epc_bytes):
             tag = SenseidFarsensTag(epc=epc_hex, user_mem_hex=user_mem_hex)
-        elif self._is_legacy_epc(epc_bytes):
-            tag = SenseidLegacyTag(epc=epc_hex, user_mem_hex=user_mem_hex)
+        elif self._is_senseread_epc(epc_bytes):
+            tag = SenseidSenseReadTag(epc=epc_hex, user_mem_hex=user_mem_hex)
         else:
             tag = SenseidRainTag(epc=epc_hex)
         self.notification_callback(tag)
@@ -82,18 +82,18 @@ class SenseidReaderRedRcp(SenseidReader):
             epc_hex = bytes(notif.epc).hex().upper()
         except Exception:
             return
-        if self._mode == SenseidReaderMode.LEGACY:
+        if self._mode == SenseidReaderMode.SENSEREAD:
             # Accumulate EPCs seen during the current inventory window; the
-            # legacy loop will perform the explicit Read on each of them.
-            with self._legacy_seen_lock:
-                self._legacy_seen.add(epc_hex)
+            # senseRead loop will perform the explicit Read on each of them.
+            with self._senseread_seen_lock:
+                self._senseread_seen.add(epc_hex)
         else:
             self._emit_tag(epc_hex, user_mem_hex=None)
 
     # ── Modes ─────────────────────────────────
 
     def get_supported_modes(self) -> List[SenseidReaderMode]:
-        return [SenseidReaderMode.SENSEID, SenseidReaderMode.LEGACY]
+        return [SenseidReaderMode.SENSEID, SenseidReaderMode.SENSEREAD]
 
     def get_mode(self) -> SenseidReaderMode:
         return self._mode
@@ -101,11 +101,11 @@ class SenseidReaderRedRcp(SenseidReader):
     def set_mode(self, mode: SenseidReaderMode):
         super().set_mode(mode)
         self._mode = mode
-        if mode == SenseidReaderMode.LEGACY:
-            self._legacy_word_count = max(SENSEID_LEGACY_DEF.word_count,
+        if mode == SenseidReaderMode.SENSEREAD:
+            self._senseread_word_count = max(SENSEID_SENSEREAD_DEF.word_count,
                                           SENSEID_FARSENS_DEF.word_count)
-            logger.info('Reader mode set to LEGACY (USER@0x%X, %d words)',
-                        LEGACY_USER_WORD_PTR, self._legacy_word_count)
+            logger.info('Reader mode set to SENSEREAD (USER@0x%X, %d words)',
+                        SENSEREAD_USER_WORD_PTR, self._senseread_word_count)
         else:
             logger.info('Reader mode set to %s', mode.value)
 
@@ -114,29 +114,29 @@ class SenseidReaderRedRcp(SenseidReader):
     def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None],
                               error_callback=None):
         self.notification_callback = notification_callback
-        if self._mode == SenseidReaderMode.LEGACY:
-            self._legacy_stop.clear()
-            self._legacy_thread = threading.Thread(
-                target=self._legacy_loop, daemon=True, name='RedRcpLegacyLoop')
-            self._legacy_thread.start()
+        if self._mode == SenseidReaderMode.SENSEREAD:
+            self._senseread_stop.clear()
+            self._senseread_thread = threading.Thread(
+                target=self._senseRead_loop, daemon=True, name='RedRcpSenseReadLoop')
+            self._senseread_thread.start()
             return None
         return self.driver.start_auto_read2()
 
     def stop_inventory_async(self):
-        if self._legacy_thread is not None:
-            self._legacy_stop.set()
-            self._legacy_thread.join(timeout=2)
-            self._legacy_thread = None
+        if self._senseread_thread is not None:
+            self._senseread_stop.set()
+            self._senseread_thread.join(timeout=2)
+            self._senseread_thread = None
             return None
         if self.driver.is_connected():
             return self.driver.stop_auto_read2()
         return None
 
-    def _is_legacy_or_farsens(self, epc_hex: str) -> bool:
+    def _is_senseRead_or_farsens(self, epc_hex: str) -> bool:
         epc_bytes = self._epc_bytes(epc_hex)
-        return self._is_farsens_epc(epc_bytes) or self._is_legacy_epc(epc_bytes)
+        return self._is_farsens_epc(epc_bytes) or self._is_senseread_epc(epc_bytes)
 
-    def _legacy_loop(self):
+    def _senseRead_loop(self):
         """Rotating operations: [inventory, read sensor_1, read sensor_2, …]
 
         CW stays on across consecutive Reads on the RED4S without needing
@@ -144,28 +144,28 @@ class SenseidReaderRedRcp(SenseidReader):
         slot uses start_auto_read2/stop_auto_read2 to refresh the EPC
         list so tags entering the field later get picked up.
 
-        Non-sensor tags (EPC PEN not legacy/Farsens) are emitted once as
+        Non-sensor tags (EPC PEN not senseRead/Farsens) are emitted once as
         Rain ID and never re-read; that keeps the operation queue cheap
         and avoids the driver's 3 s read timeout on random tags."""
         sensor_epcs: list[str] = []
         seen_passthrough: set[str] = set()
 
         def do_inventory():
-            with self._legacy_seen_lock:
-                self._legacy_seen.clear()
+            with self._senseread_seen_lock:
+                self._senseread_seen.clear()
             try:
                 self.driver.start_auto_read2()
             except Exception as e:
-                logger.error('legacy_loop start_auto_read2 failed: %s', e)
+                logger.error('senseRead_loop start_auto_read2 failed: %s', e)
                 return
-            self._legacy_stop.wait(LEGACY_INVENTORY_WINDOW_S)
+            self._senseread_stop.wait(SENSEREAD_INVENTORY_WINDOW_S)
             try:
                 self.driver.stop_auto_read2()
             except Exception:
                 pass
-            with self._legacy_seen_lock:
-                seen = set(self._legacy_seen)
-            new_sensor = [e for e in seen if self._is_legacy_or_farsens(e)]
+            with self._senseread_seen_lock:
+                seen = set(self._senseread_seen)
+            new_sensor = [e for e in seen if self._is_senseRead_or_farsens(e)]
             # Keep stable rotation order; append newcomers, drop strays.
             sensor_epcs[:] = [e for e in sensor_epcs if e in new_sensor] + \
                              [e for e in new_sensor if e not in sensor_epcs]
@@ -178,17 +178,17 @@ class SenseidReaderRedRcp(SenseidReader):
             user_mem = None
             try:
                 data = self.driver.read(epc_hex, ParamMemory.USER,
-                                        LEGACY_USER_WORD_PTR,
-                                        self._legacy_word_count)
+                                        SENSEREAD_USER_WORD_PTR,
+                                        self._senseread_word_count)
                 if data:
                     user_mem = bytes(data).hex().upper()
             except Exception as e:
-                logger.debug('legacy_loop read(%s) failed: %s', epc_hex, e)
+                logger.debug('senseRead_loop read(%s) failed: %s', epc_hex, e)
             self._emit_tag(epc_hex, user_mem)
 
         try:
             op_idx = 0
-            while not self._legacy_stop.is_set():
+            while not self._senseread_stop.is_set():
                 op_start = time.monotonic()
                 # Slot 0 = inventory, 1..N = sensor reads (rotating).
                 ops_len = 1 + len(sensor_epcs)
@@ -199,9 +199,9 @@ class SenseidReaderRedRcp(SenseidReader):
                 else:
                     do_read(sensor_epcs[op - 1])
                 elapsed = time.monotonic() - op_start
-                remaining = LEGACY_OP_PERIOD_S - elapsed
+                remaining = SENSEREAD_OP_PERIOD_S - elapsed
                 if remaining > 0:
-                    self._legacy_stop.wait(remaining)
+                    self._senseread_stop.wait(remaining)
         finally:
             try:
                 self.driver.set_cw(False)

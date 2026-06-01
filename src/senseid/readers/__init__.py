@@ -37,6 +37,8 @@ class SupportedSenseidReader(Enum):
 class SenseidReaderConnectionInfo:
     driver: SupportedSenseidReader
     connection_string: str
+    username: Optional[str] = None
+    password: Optional[str] = None
 
 
 @dataclass_json
@@ -49,6 +51,7 @@ class SenseidReaderDetails:
     min_tx_power: float = None
     max_tx_power: float = None
     technology: SenseidTechnologies = None
+    serial_number: Optional[str] = None
 
 
 class SenseidReader(ABC):
@@ -128,7 +131,7 @@ def create_SenseidReader(reader_info: SenseidReaderConnectionInfo = None, notifi
         return SenseidAcr1552()
     if reader_info.driver == SupportedSenseidReader.IMPINJ_IOT:
         from .impinj_iot import SenseidImpinjIot
-        return SenseidImpinjIot()
+        return SenseidImpinjIot(username=reader_info.username, password=reader_info.password)
     if reader_info.driver == SupportedSenseidReader.ZEBRA_LLRP:
         from .zebra_llrp import SenseidZebraLlrp
         return SenseidZebraLlrp()

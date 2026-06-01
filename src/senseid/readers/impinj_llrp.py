@@ -118,9 +118,20 @@ class SenseidImpinjLlrp(SenseidReader):
                 'wordCount': word_count,
             }]
             self.driver.set_tag_memory_reads(reads)
-            logger.info('Reader mode set to SENSEREAD (tagMemoryReads=%s)', reads)
+            # Restrict inventory to the SenseID family (PEN's first byte is
+            # 0x00) so competing commercial tags (0xE2…) don't share the
+            # Speedway's dual-target AISpec slots. Without this, on a mixed
+            # population the embedded USER 0x100 read drops to ~16/s with
+            # almost no senseRead reads; with the filter only SenseID tags
+            # inventory and the read consistently lands on them.
+            pen = SENSEID_SENSEREAD_DEF.pen_header
+            mask_hex = f'{pen[0]:02X}'
+            self.driver.set_tag_filter([mask_hex])
+            logger.info('Reader mode set to SENSEREAD (tagMemoryReads=%s, filter=%r)',
+                        reads, [mask_hex])
         else:
             self.driver.set_tag_memory_reads(None)
+            self.driver.set_tag_filter(None)
             logger.info('Reader mode set to %s (no embedded memory reads)', mode.value)
 
     def start_inventory_async(self, notification_callback: Callable[[SenseidTag], None],

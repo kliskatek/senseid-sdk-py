@@ -219,13 +219,10 @@ class SenseidImpinjIot(SenseidReader):
         super().set_mode(mode)
         self._mode = mode
         if mode == SenseidReaderMode.SENSEREAD:
-            # Read exactly the senseRead datagram size. R700 firmware NAKs a read
-            # that runs past the tag's datagram (memory overrun): the result comes
-            # back blank AND the reader re-accesses that tag in a loop, starving
-            # the others. wordCount = datagram size avoids the overrun and matches
-            # the reader's own working "Clone-default" preset (wordCount=3).
-            # (Farsens needs more words, but the R700 IoT cannot read its 0x100
-            # buffer reliably anyway — revisit per-family if Farsens is needed.)
+            # word_count comes from the senseRead yaml. Sized for the largest
+            # datagram in the family (currently 8 bytes for 3-axis sensors);
+            # smaller datagrams (RHAT, AT, CTN) read the same window and the
+            # parser ignores the trailing bytes.
             word_count = SENSEID_SENSEREAD_DEF.word_count
             reads = [{
                 'memoryBank': SENSEID_SENSEREAD_DEF.memory_bank.value,

@@ -2,6 +2,7 @@ import logging
 import struct
 from dataclasses import dataclass
 from datetime import datetime
+from math import log
 from typing import Optional
 
 from dataclasses_json import dataclass_json
@@ -119,6 +120,13 @@ class SenseidSenseReadTag(SenseidTag):
                         value = value_raw
                     elif data_config.transform == SenseidTransformType.LINEAR:
                         value = data_config.coefficients[0] + data_config.coefficients[1] * value_raw
+                    elif data_config.transform == SenseidTransformType.THERMISTOR_BETA:
+                        # value_raw is the ADC12 reading of a 10k half bridge
+                        r_thermistor = value_raw * 10e3 / (4095 - value_raw)
+                        beta = data_config.coefficients[0]
+                        r0 = data_config.coefficients[1]
+                        t0 = data_config.coefficients[2] + 273.15
+                        value = 1 / (1 / t0 + 1 / beta * log(r_thermistor / r0)) - 273.15
 
                 # Range check on the calibrated value (after transform).
                 if (value is not None and data_config.valid_range

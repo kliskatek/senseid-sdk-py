@@ -81,3 +81,31 @@ class SenseidKlSbleLcr(SenseidReader):
         on the reader brings it back to hopping.
         """
         return self.driver.set_cw_channel(channel)
+
+    # -- Certification test signals (EN 302 208) --
+
+    def start_cw(self) -> bool:
+        """Emit an unmodulated carrier (CW) on the selected channel.
+
+        Isolated CW for certification: unlike start_inventory_async() this
+        does not start the BLE receiver. Lock the channel first with
+        set_rf_channel().
+        """
+        return self.driver.start_cw()
+
+    def stop_cw(self) -> bool:
+        """Stop the unmodulated carrier."""
+        return self.driver.stop_cw()
+
+    def start_test_signal(self, on_ms: int = 30, off_ms: int = 5) -> bool:
+        """Start the modulated test signal (succession of transmit pulses).
+
+        on_ms (10..50) of modulated carrier followed by off_ms (1..10) of
+        silence, repeated until stop_test_signal(). Lock the channel first
+        with set_rf_channel().
+        """
+        return self.driver.start_test_signal(on_ms, off_ms)
+
+    def stop_test_signal(self) -> bool:
+        """Stop the modulated test signal pulse train."""
+        return self.driver.stop_test_signal()

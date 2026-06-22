@@ -98,11 +98,11 @@ class SenseidKlSbleLcr(SenseidReader):
         return self.driver.stop_cw()
 
     def start_test_signal(self, on_ms: int = 30, off_ms: int = 5) -> bool:
-        """Start the modulated test signal (succession of transmit pulses).
+        """Start the test signal (succession of pulsed pure-CW transmit pulses).
 
-        on_ms (10..50) of modulated carrier followed by off_ms (1..10) of
-        silence, repeated until stop_test_signal(). Lock the channel first
-        with set_rf_channel().
+        The PA ramps up, holds for on_ms (10..50) at full power, ramps down
+        (ramps inside the ON window), then off_ms (1..10) of silence, repeated
+        until stop_test_signal(). Lock the channel first with set_rf_channel().
         """
         return self.driver.start_test_signal(on_ms, off_ms)
 

@@ -113,8 +113,9 @@ class SenseidKlSbleLcr(SenseidReader):
     def get_temperature(self) -> float | None:
         """Temperature of the reader's MCU (CC2340) in degrees C, or None.
 
-        Die temperature, in 0.25 C steps and a few degrees of accuracy: it
-        follows the reader's RF module, while the PA itself runs hotter. Needs
+        Die temperature, moving in steps of 1-2 C and accurate to a few
+        degrees: it follows the reader's RF module, while the PA itself runs
+        hotter. Needs
         reader firmware with GET_TEMPERATURE and driver-sble-py-klsblelcf 1.3.0
         or later.
         """

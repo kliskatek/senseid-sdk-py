@@ -42,7 +42,7 @@ class SenseidKlSbleLcr(SenseidReader):
                 firmware_version='1.0.0',
                 antenna_count=1,
                 min_tx_power=10,
-                max_tx_power=31.5
+                max_tx_power=31.0
             )
             logger.debug(self.details)
         return self.details

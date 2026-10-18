@@ -29,7 +29,7 @@ dependencies = [
   'pyyaml',
   'dataclasses_json',
   'redrcp>=1.2.0',
-  'nurapy>=1.1.0',
+  'nurapy>=1.1.1',
   'impinj-llrp>=0.0.3',
   'zebra-llrp>=0.7.0',
   'impinj-iot>=0.4.0',

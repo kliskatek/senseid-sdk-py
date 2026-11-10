@@ -45,8 +45,6 @@ class SenseidBleTypeDef:
     data_def: List[SenseidBleDataDef]
     fw_versions: List[int]
     datasheet_url: Optional[str] = field(default=None)
-    # Layouts of the fw versions whose payload differs from data_def, keyed by the version byte of the beacon
-    data_def_versions: Optional[Dict[int, List[SenseidBleDataDef]]] = field(default=None)
     store_url: Optional[str] = field(default=None)
 
 

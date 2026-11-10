@@ -71,8 +71,11 @@ class SenseidBleTag(SenseidTag):
         self.datasheet_url = senseid_type_config.datasheet_url
         self.store_url = senseid_type_config.store_url
         self.data = []
+        data_def = senseid_type_config.data_def
+        if senseid_type_config.data_def_versions and fw_version in senseid_type_config.data_def_versions:
+            data_def = senseid_type_config.data_def_versions[fw_version]
         try:
-            for data_config in senseid_type_config.data_def:
+            for data_config in data_def:
                 value_raw = None
                 if data_config.type == SenseidValueType.PADDING:
                     senseid_value_bytes = senseid_value_bytes[1:]

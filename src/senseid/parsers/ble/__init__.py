@@ -70,6 +70,10 @@ class SenseidBleTag(SenseidTag):
         self.description = senseid_type_config.description
         self.datasheet_url = senseid_type_config.datasheet_url
         self.store_url = senseid_type_config.store_url
+        if fw_version < SENSEID_BLE_DEF.min_fw_version:
+            self.description = 'Unsupported SenseID fw version'
+            self.data = None
+            return
         self.data = []
         try:
             for data_config in senseid_type_config.data_def:

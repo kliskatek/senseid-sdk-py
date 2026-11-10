@@ -55,6 +55,8 @@ class SenseidBleDef:
     date: datetime.date
     local_name: str
     types: Dict[int, SenseidBleTypeDef]
+    # Beacons with a lower version byte are not decoded
+    min_fw_version: int = field(default=0)
 
 
 # Detect Source or Package mode
